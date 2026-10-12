@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3B3F9E"/>
+      <stop offset="1" stop-color="#16183D"/>
+    </linearGradient>
+    <linearGradient id="funnel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#C7CBFF" stop-opacity="0.85"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD66B"/>
+      <stop offset="1" stop-color="#FF8A3D"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFB54D" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#FFB54D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- tile -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="3"/>
+  <g transform="translate(0 -28)">
+  <!-- conversation lines -->
+  <rect x="262" y="226" width="380" height="44" rx="22" fill="#FFFFFF" fill-opacity="0.55"/>
+  <rect x="382" y="296" width="380" height="44" rx="22" fill="#FFFFFF" fill-opacity="0.75"/>
+  <rect x="302" y="366" width="300" height="44" rx="22" fill="#FFFFFF" fill-opacity="0.55"/>
+  <!-- funnel -->
+  <path d="M236 446 H788 a20 20 0 0 1 14 34 L566 676 V706 a14 14 0 0 1 -14 14 H472 a14 14 0 0 1 -14 -14 V676 L222 480 a20 20 0 0 1 14 -34 Z" fill="url(#funnel)"/>
+  <!-- drop -->
+  <circle cx="512" cy="820" r="90" fill="url(#glow)"/>
+  <path d="M512 742 C540 778 560 800 560 826 a48 48 0 0 1 -96 0 C464 800 484 778 512 742 Z" fill="url(#drop)"/>
+  <ellipse cx="496" cy="822" rx="9" ry="16" fill="#FFFFFF" fill-opacity="0.6"/>
+  </g>
+</svg>
