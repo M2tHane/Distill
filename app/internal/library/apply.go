@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/distill/internal/env"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/app/internal/env"
 )
 
 // Applying a resource to an agent puts it where the agent reads it:

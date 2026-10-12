@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dade/agentlog"
+	"github.com/M2tHane/Distill/agentlog"
 )
 
 // Agents are the agents Distill knows, in the order it shows them.

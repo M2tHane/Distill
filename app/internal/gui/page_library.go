@@ -6,9 +6,9 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/distill/internal/env"
-	"github.com/dade/distill/internal/library"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/app/internal/env"
+	"github.com/M2tHane/Distill/app/internal/library"
 )
 
 type libraryState struct {

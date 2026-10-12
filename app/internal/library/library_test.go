@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/distill/internal/env"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/app/internal/env"
 )
 
 func testLibrary(t *testing.T) (env.Paths, Library) {

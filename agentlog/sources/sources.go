@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/sources/claude"
-	"github.com/dade/agentlog/sources/codex"
-	"github.com/dade/agentlog/sources/pi"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/sources/claude"
+	"github.com/M2tHane/Distill/agentlog/sources/codex"
+	"github.com/M2tHane/Distill/agentlog/sources/pi"
 )
 
 // All returns a source for every supported agent, reading under home (the

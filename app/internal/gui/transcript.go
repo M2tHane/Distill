@@ -8,7 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/dade/agentlog"
+	"github.com/M2tHane/Distill/agentlog"
 )
 
 // viewState is the transcript shown beside the list.

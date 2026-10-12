@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dade/agentlog"
+	"github.com/M2tHane/Distill/agentlog"
 )
 
 const (

@@ -9,7 +9,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
-	"github.com/dade/agentlog"
+	"github.com/M2tHane/Distill/agentlog"
 )
 
 // exportMarkdown writes sessions as Markdown: one to a file the user names,

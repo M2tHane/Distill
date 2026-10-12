@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/parse"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/parse"
 )
 
 // PiSource reads Pi sessions: <Root>/--<cwd>--/<time>_<id>.jsonl. Deeper

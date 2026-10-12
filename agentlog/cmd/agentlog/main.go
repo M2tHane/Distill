@@ -14,8 +14,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/sources"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/sources"
 )
 
 func main() {

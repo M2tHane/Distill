@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/sources"
-	"github.com/dade/distill/internal/env"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/sources"
+	"github.com/M2tHane/Distill/app/internal/env"
 )
 
 // AgentDir returns a working directory for an agent run under

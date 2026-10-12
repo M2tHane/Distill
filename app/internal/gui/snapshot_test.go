@@ -10,10 +10,10 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/sources"
-	"github.com/dade/distill/internal/env"
-	"github.com/dade/distill/internal/library"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/sources"
+	"github.com/M2tHane/Distill/app/internal/env"
+	"github.com/M2tHane/Distill/app/internal/library"
 )
 
 // TestSnapshots draws the pages with this computer's real sessions and

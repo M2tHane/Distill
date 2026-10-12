@@ -6,7 +6,7 @@ package main
 import (
 	_ "embed"
 
-	"github.com/dade/distill/internal/gui"
+	"github.com/M2tHane/Distill/app/internal/gui"
 )
 
 // icon is the app icon; resources/icon.svg is its source.

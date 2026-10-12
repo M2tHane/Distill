@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/distill/internal/env"
-	"github.com/dade/distill/internal/testutil"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/app/internal/env"
+	"github.com/M2tHane/Distill/app/internal/testutil"
 )
 
 // TestRunners runs each installed agent twice in one session: the second

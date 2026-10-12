@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/dade/agentlog"
+	"github.com/M2tHane/Distill/agentlog"
 )
 
 // Builder assembles a transcript from the records of a log, in order: a

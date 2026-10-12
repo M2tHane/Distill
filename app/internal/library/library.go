@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dade/distill/internal/env"
+	"github.com/M2tHane/Distill/app/internal/env"
 )
 
 // Kind is a kind of resource in the library.

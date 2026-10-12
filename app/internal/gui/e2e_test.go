@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/sources"
-	"github.com/dade/distill/internal/env"
-	"github.com/dade/distill/internal/library"
-	"github.com/dade/distill/internal/runner"
-	"github.com/dade/distill/internal/testutil"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/sources"
+	"github.com/M2tHane/Distill/app/internal/env"
+	"github.com/M2tHane/Distill/app/internal/library"
+	"github.com/M2tHane/Distill/app/internal/runner"
+	"github.com/M2tHane/Distill/app/internal/testutil"
 )
 
 // TestDistillE2E distills a real session into a temporary library with

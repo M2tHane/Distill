@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/parse"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/parse"
 )
 
 // ClaudeSource reads Claude Code sessions: <Root>/<project>/<session>.jsonl.

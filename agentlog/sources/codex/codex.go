@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/parse"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/parse"
 )
 
 // CodexSource reads Codex rollouts: <Root>/sessions/YYYY/MM/DD/rollout-*.jsonl

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/sources"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/sources"
 )
 
 const home = "../testdata/home"

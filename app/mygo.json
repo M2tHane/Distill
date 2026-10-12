@@ -1,0 +1,8 @@
+{
+  "name": "Distill",
+  "identifier": "com.m2thane.distill",
+  "version": "0.1.0",
+  "copyright": "Copyright © 2026 M2tHane",
+  "icon": "resources/icon.png",
+  "out": "../build"
+}

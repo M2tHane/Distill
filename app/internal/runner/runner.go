@@ -12,9 +12,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/dade/agentlog"
-	"github.com/dade/agentlog/parse"
-	"github.com/dade/distill/internal/env"
+	"github.com/M2tHane/Distill/agentlog"
+	"github.com/M2tHane/Distill/agentlog/parse"
+	"github.com/M2tHane/Distill/app/internal/env"
 )
 
 // Event is something an agent did while it ran.
