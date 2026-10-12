@@ -71,3 +71,20 @@ go test ./...
 go run ./cmd/agentlog list                 # 列出全部会话
 go run ./cmd/agentlog show <session.jsonl> # 输出一个会话的 Markdown
 ```
+
+## 安装
+
+```sh
+brew install --cask m2thane/tap/distill
+```
+
+或者从 [Releases](https://github.com/M2tHane/Distill/releases) 下载 dmg。应用没有 Apple 签名，直接下载的版本第一次打开会被拦下，到「系统设置 → 隐私与安全性」点「仍要打开」。
+
+## 发布
+
+```sh
+cd app
+mygo build -platform darwin/universal      # build/darwin-universal/Distill.app 和 dmg；版本号在 mygo.json
+```
+
+打包工具：`go install github.com/egoist/mygo/cmd/mygo@v0.4.6`。发布后更新 [homebrew-tap](https://github.com/M2tHane/homebrew-tap) 里 `Casks/distill.rb` 的 `version` 和 `sha256`。

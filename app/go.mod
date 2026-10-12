@@ -3,7 +3,7 @@ module github.com/M2tHane/Distill/app
 go 1.27.1
 
 require (
-	github.com/M2tHane/Distill/agentlog v0.0.0
+	github.com/M2tHane/Distill/agentlog v0.1.0
 	github.com/egoist/mygo v0.4.6
 	github.com/yuin/goldmark v1.8.6
 )
@@ -13,5 +13,3 @@ require (
 	github.com/go-text/typesetting v0.3.5 // indirect
 	golang.org/x/image v0.46.0 // indirect
 )
-
-replace github.com/M2tHane/Distill/agentlog => ../agentlog
