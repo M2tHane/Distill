@@ -26,6 +26,7 @@ import (
 type page string
 
 const (
+	pageOverview page = "overview"
 	pageAgents   page = "agents"
 	pageSessions page = "sessions"
 	pageLibrary  page = "library"
@@ -45,6 +46,7 @@ type app struct {
 	infos map[agentlog.Agent]*env.AgentInfo
 	md    *mdView // Markdown parsed, for every view
 
+	overview overviewState
 	sessions sessionsState
 	distill  distillState
 	// distillFrame is where the user moved and sized the distill dialog.
@@ -68,7 +70,7 @@ func Run(icon []byte) {
 		firstRun: os.IsNotExist(err),
 		srcs:     sources.All(p.Home),
 		lib:      library.Library{P: p},
-		page:     pageSessions,
+		page:     pageOverview,
 		infos:    map[agentlog.Agent]*env.AgentInfo{},
 		md:       newMDView(),
 	}
@@ -93,7 +95,7 @@ func Run(icon []byte) {
 			Title:         "Distill",
 			Width:         1180,
 			Height:        780,
-			MinWidth:      860,
+			MinWidth:      minWindowWidth,
 			MinHeight:     560,
 			TitleBarStyle: mygo.TitleBarHiddenInset,
 			Content:       ui.View(a.view),
@@ -104,6 +106,8 @@ func Run(icon []byte) {
 		log.Fatal(err)
 	}
 }
+
+const minWindowWidth = 860
 
 // start finds the agents and the sessions, away from the main thread.
 func (a *app) start() {
@@ -186,7 +190,8 @@ func (a *app) rescan() {
 }
 
 // writeBuiltin puts the built-in skills and the library's README in
-// ~/.distill, refreshing copies of them applied to agents.
+// ~/.distill, refreshing copies of them applied to agents, and giving the
+// agents that have some of them the ones added since.
 func (a *app) writeBuiltin() error {
 	if err := os.MkdirAll(a.p.Library, 0o755); err != nil {
 		return err
@@ -218,10 +223,20 @@ func (a *app) writeBuiltin() error {
 	if err != nil {
 		return err
 	}
-	for _, it := range a.lib.Scan(a.p.Builtin, true) {
-		for _, ag := range env.Agents {
-			if st := library.Status(a.p, it, ag); st.Applied && !st.Linked {
+	builtins := a.lib.Scan(a.p.Builtin, true)
+	for _, ag := range env.Agents {
+		// An agent given the built-in skills gets those added since.
+		some := false
+		for _, it := range builtins {
+			some = some || library.Status(a.p, it, ag).Applied
+		}
+		for _, it := range builtins {
+			st := library.Status(a.p, it, ag)
+			switch {
+			case st.Applied && !st.Linked:
 				library.Apply(a.p, it, ag, true)
+			case !st.Applied && some && st.Conflict == "":
+				library.Apply(a.p, it, ag, a.cfg != nil && a.cfg.SkillsCopy)
 			}
 		}
 	}
@@ -229,11 +244,13 @@ func (a *app) writeBuiltin() error {
 }
 
 func (a *app) view(c *ui.Context) {
-	t := c.Theme()
-	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
+	p := colors(c.Theme())
+	ui.Row(c).Fill().AlignItems(ui.Stretch).Gradient(p.washFrom, p.washTo, 160).Children(func() {
 		a.sidebar(c)
-		ui.Column(c).Grow(1).MinWidth(0).Background(t.Background).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			switch a.page {
+			case pageOverview:
+				a.overviewPage(c)
 			case pageAgents:
 				a.agentsPage(c)
 			case pageSessions:
@@ -255,48 +272,45 @@ func (a *app) view(c *ui.Context) {
 func (a *app) sidebar(c *ui.Context) {
 	t := c.Theme()
 	bar := c.TitleBar()
-	side := ui.Hex("#F4F4F5")
-	if t.Dark {
-		side = ui.Hex("#1C1C1F")
-	}
-	ui.Column(c).Width(200).Background(side).BorderWidth(0, 1, 0, 0).BorderColor(t.Border).Children(func() {
+	ui.Column(c).Width(sidebarWidth).Shrink(0).Children(func() {
 		ui.Row(c).Height(titleHeight(bar)).Padding(0, 12, 0, bar.Left+8).DragWindow().Children(func() {
-			ui.Text(c, "Distill").Bold()
+			ui.Text(c, "Distill").Bold().TextColor(t.TextMuted)
 		})
-		ui.Column(c).Padding(8, 10).Gap(2).Children(func() {
-			muted(c, "使用").FontSize(12).Padding(6, 8, 4)
-			a.navItem(c, pageAgents, iconTerminal, "Agent", "")
+		ui.Column(c).Grow(1).Padding(10, 12, 14).Gap(4).Children(func() {
+			a.navItem(c, pageOverview, iconDashboard, "概览", "")
 			n := ""
 			if len(a.sessions.all) > 0 {
 				n = strconv.Itoa(len(a.sessions.all))
 			}
 			a.navItem(c, pageSessions, iconChat, "会话", n)
 			a.navItem(c, pageLibrary, iconLibrary, "资源库", "")
+			ui.Spacer(c)
+			ui.Box(c).Height(1).Margin(6, 4).Background(t.Border)
+			a.navItem(c, pageAgents, iconTerminal, "Agent", "")
 		})
 	})
 }
 
-func (a *app) navItem(c *ui.Context, p page, svg *ui.SVG, label, count string) {
-	t := c.Theme()
-	b := ui.ButtonBase(c.Key(p)).Label(label).Padding(7, 10).Radius(8).Gap(10).Cursor(ui.CursorPointer)
-	if a.page == p {
-		b.Background(t.Background).Shadow(0, 1, 2, 0, ui.RGBA(0, 0, 0, 0.08))
+func (a *app) navItem(c *ui.Context, pg page, svg *ui.SVG, label, count string) {
+	p := colors(c.Theme())
+	b := ui.ButtonBase(c.Key(pg)).Label(label).Padding(9, 12).Radius(10).Gap(12).Cursor(ui.CursorPointer)
+	if a.page == pg {
+		b.Background(p.navActive)
 	} else if b.Hovered() {
-		b.Background(ui.RGBA(0, 0, 0, 0.04))
+		b.Background(p.navHover)
 	}
 	b.Children(func() {
-		ui.Icon(c, svg).FontSize(15)
-		ui.Text(c, label).Grow(1)
+		ui.Icon(c, svg).FontSize(18)
+		ui.Text(c, label).FontSize(14).FontWeight(500).Grow(1)
 		if count != "" {
 			muted(c, count).FontSize(12)
 		}
 	})
 	if b.Clicked() {
-		a.page = p
+		a.page = pg
 	}
 }
 
-// header draws a page's title row, under the window controls.
 // titleHeight is the height of the rows beside the window controls, which
 // centers their text on the controls. On macOS the controls of a window
 // with an inset title bar are centered 26 DIPs from the top, while the room
@@ -308,10 +322,11 @@ func titleHeight(bar ui.TitleBar) float32 {
 	return min(bar.Height, 52)
 }
 
+// header draws a page's large title, and its actions on the right.
 func header(c *ui.Context, title string, right func()) {
 	bar := c.TitleBar()
-	ui.Row(c).Height(titleHeight(bar)).Padding(0, 16, 0, 24).Gap(8).DragWindow().Children(func() {
-		ui.Text(c, title).FontSize(15).Bold()
+	ui.Row(c).Height(titleHeight(bar)+30).Padding(12, 24, 0, 28).Gap(8).Shrink(0).DragWindow().Children(func() {
+		ui.Text(c, title).FontSize(26).FontWeight(800).SingleLine()
 		ui.Spacer(c)
 		if right != nil {
 			right()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -15,7 +16,7 @@ import (
 const defaultModel = "默认模型"
 
 // modelSelect chooses an agent's model: its default, or one it offers.
-func (a *app) modelSelect(c *ui.Context, ag agentlog.Agent) {
+func (a *app) modelSelect(c *ui.Context, ag agentlog.Agent, width float32) {
 	cfg := a.cfg.Agents[ag]
 	options := append([]string{defaultModel}, a.infos[ag].Models...)
 	model := cfg.Model
@@ -23,7 +24,7 @@ func (a *app) modelSelect(c *ui.Context, ag agentlog.Agent) {
 		// A model no longer offered, as after the settings changed, is the default.
 		model = defaultModel
 	}
-	if scrollSelect(c, &model, options, 240, "模型", nil) {
+	if scrollSelect(c, &model, options, width, "模型", nil) {
 		if model == defaultModel {
 			model = ""
 		}
@@ -33,7 +34,6 @@ func (a *app) modelSelect(c *ui.Context, ag agentlog.Agent) {
 }
 
 func (a *app) agentsPage(c *ui.Context) {
-	t := c.Theme()
 	header(c, "Agent", func() {
 		if iconButton(c, iconRefresh, "重新检测").Clicked() {
 			for _, ag := range env.Agents {
@@ -42,62 +42,84 @@ func (a *app) agentsPage(c *ui.Context) {
 			go a.detectAgents()
 		}
 	})
-	ui.Scroll(c).Grow(1).Padding(4, 24, 24).Gap(14).Children(func() {
+	ui.Scroll(c).Grow(1).Padding(4, 28, 28).Gap(18).Children(func() {
 		muted(c, "启用的 Agent 才能在「提炼」时选择，所选模型就是提炼时使用的模型。内置 Skill 会安装到对应 Agent 的 skills 目录。")
-		ui.Column(c).Radius(12).Border(1, t.Border).Clip().Dividers(1, t.Border).Children(func() {
+		// As many columns as fit, cards at least 280 wide.
+		w, _ := c.Size()
+		cols := max(1, min(len(env.Agents), int((w-220-56+18)/(280+18))))
+		ui.Grid(c).Columns(cols).Gap(18).Children(func() {
 			for _, ag := range env.Agents {
-				a.agentRow(c, ag)
+				a.agentCard(c, ag)
 			}
 		})
 	})
 }
 
-func (a *app) agentRow(c *ui.Context, ag agentlog.Agent) {
+// agentCard shows an agent: whether it is installed and on, its version
+// and where it is, its model and its built-in skills.
+func (a *app) agentCard(c *ui.Context, ag agentlog.Agent) {
 	t := c.Theme()
+	p := colors(t)
 	info := a.infos[ag]
 	cfg := a.cfg.Agents[ag]
-	ui.Row(c.Key(ag)).Padding(14, 18).Gap(14).Children(func() {
-		agentMark(c, ag, 34, info.Installed())
-		ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-			ui.Row(c).Gap(8).Children(func() {
-				ui.Text(c, ag.Label()).FontSize(15).Bold()
-				if info.Version != "" {
-					muted(c, info.Version)
-				}
+	card(c.Key(ag)).Gap(14).Children(func() {
+		ui.Row(c).Gap(12).Children(func() {
+			ui.Box(c).Size(48, 48).Radius(14).Center().Background(p.subtle).Children(func() {
+				agentMark(c, ag, 28, info.Installed())
 			})
-			ui.Row(c).Gap(6).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+				caption(c, strings.ToUpper(ag.Label()))
+				state := "未安装"
 				switch {
 				case info.Detecting && !info.Installed():
-					ui.Spinner(c).Size(10, 10)
-					muted(c, "检测中…").FontSize(12)
-				case !info.Installed():
-					dot(c, t.TextMuted)
-					muted(c, "未安装：PATH 中找不到 "+env.Commands[ag]).FontSize(12)
-				default:
-					color := t.TextMuted
-					state := "未启用"
-					if cfg.Enabled {
-						color, state = t.Success, "已启用"
-					}
-					dot(c, color)
-					line := fmt.Sprintf("%s · %s · %d 个模型", state, info.Bin, len(info.Models))
-					muted(c, line).FontSize(12).SingleLine()
+					state = "检测中…"
+				case info.Installed() && cfg.Enabled:
+					state = "已启用"
+				case info.Installed():
+					state = "未启用"
 				}
+				ui.Text(c, state).FontSize(22).FontWeight(800).SingleLine()
 			})
+			if info.Installed() && ui.Switch(c, &cfg.Enabled).Label("启用").Changed() {
+				a.saveConfig()
+			}
 		})
-		if !info.Installed() {
-			return
+		if info.Installed() {
+			ui.Column(c).Gap(8).Children(func() {
+				a.modelSelect(c, ag, 0)
+				a.builtinButton(c, ag)
+			})
 		}
-		a.builtinButton(c, ag)
-		a.modelSelect(c, ag)
-		if ui.Switch(c, &cfg.Enabled).Label("启用").Changed() {
-			a.saveConfig()
-		}
+		ui.Row(c).Gap(8).MarginY(2).Children(func() {
+			switch {
+			case info.Detecting && !info.Installed():
+				ui.Spinner(c).Size(10, 10)
+				muted(c, "正在查找 "+env.Commands[ag]).FontSize(12)
+			case !info.Installed():
+				muted(c, "PATH 中找不到 "+env.Commands[ag]).FontSize(12).SingleLine().Shrink(1).MinWidth(0)
+			default:
+				line := info.Version
+				if line != "" {
+					line += " · "
+				}
+				line += fmt.Sprintf("%d 个模型", len(info.Models))
+				muted(c, line).FontSize(12).SingleLine().Shrink(1).MinWidth(0).Tooltip(info.Bin)
+			}
+			ui.Spacer(c)
+			color := t.TextMuted
+			if info.Installed() && cfg.Enabled {
+				color = t.Success
+			}
+			statusDot(c, color)
+		})
 	})
 }
 
-func dot(c *ui.Context, color ui.Color) {
-	ui.Box(c).Size(7, 7).Radius(4).Background(color)
+// statusDot is a dot in a halo of its color, as a status light.
+func statusDot(c *ui.Context, color ui.Color) {
+	ui.Box(c).Size(20, 20).Radius(10).Center().Background(color.Alpha(0.15)).Shrink(0).Children(func() {
+		ui.Box(c).Size(8, 8).Radius(4).Background(color)
+	})
 }
 
 // builtinButton shows whether the built-in skills are in an agent's skills,
@@ -119,7 +141,7 @@ func (a *app) builtinButton(c *ui.Context, ag agentlog.Agent) {
 	} else if n > 0 {
 		label = "内置 Skill " + strconv.Itoa(n) + "/" + strconv.Itoa(len(builtins))
 	}
-	b := ui.Button(c, "").Tooltip("distill-skill、distill-rule、distill-instructions").Children(func() {
+	b := ui.Button(c, "").FillWidth().Tooltip(builtinNames(builtins)).Children(func() {
 		ui.Icon(c, iconSkill).FontSize(13)
 		ui.Text(c, label).FontSize(12).SingleLine()
 	})
@@ -201,4 +223,13 @@ func (a *app) builtinDialog(c *ui.Context) {
 			}
 		})
 	})
+}
+
+// builtinNames lists the built-in skills by name.
+func builtinNames(items []library.Item) string {
+	var names []string
+	for _, it := range items {
+		names = append(names, it.Name)
+	}
+	return strings.Join(names, "、")
 }

@@ -71,6 +71,9 @@ type ApplyStatus struct {
 }
 
 func Status(p env.Paths, it Item, a agentlog.Agent) ApplyStatus {
+	if !it.Kind.Appliable() {
+		return ApplyStatus{}
+	}
 	t := targetOf(p, it, a)
 	if t.block {
 		data, err := os.ReadFile(t.path)
@@ -107,6 +110,9 @@ func blockBegin(it Item) string { return "<!-- distill:begin " + it.ID() + " -->
 func blockEnd(it Item) string   { return "<!-- distill:end " + it.ID() + " -->" }
 
 func Apply(p env.Paths, it Item, a agentlog.Agent, copyMode bool) error {
+	if !it.Kind.Appliable() {
+		return fmt.Errorf("%s 不能应用到 Agent", it.Kind.Label())
+	}
 	t := targetOf(p, it, a)
 	if t.block {
 		data, err := os.ReadFile(it.File)
@@ -146,6 +152,9 @@ func Apply(p env.Paths, it Item, a agentlog.Agent, copyMode bool) error {
 }
 
 func Unapply(p env.Paths, it Item, a agentlog.Agent) error {
+	if !it.Kind.Appliable() {
+		return nil
+	}
 	t := targetOf(p, it, a)
 	if t.block {
 		return writeBlock(t.path, it, "")

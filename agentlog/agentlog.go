@@ -1,7 +1,9 @@
 // Package agentlog reads the local session logs of coding agents and turns
 // them into one compact transcript format: what the user typed, what the
-// assistant replied and which tools it called. Tool results, reasoning, token
-// accounting and injected context are dropped.
+// assistant replied and which tools it called. Of tool results only what
+// tells what went wrong is kept: failures with their error, calls the user
+// rejected or interrupted, and the short output of tests and builds.
+// Reasoning, token accounting and injected context are dropped.
 //
 // Each agent's logs are read by a Source, in a package of its own under
 // sources/; sources.All returns them all. Package parse holds what sources
@@ -78,14 +80,33 @@ type Message struct {
 	Text  string
 	Tools []ToolCall
 	Time  time.Time
+	// Interrupted is an assistant message the user stopped.
+	Interrupted bool
 }
 
-// ToolCall is a tool invocation without its result.
+// ToolCall is a tool invocation, and what of its result is worth reading.
 type ToolCall struct {
+	ID      string // the agent's ID of the call, which its result names
 	Name    string // Bash, Edit, exec_command, mcp__server__tool …
 	Summary string // one line: the command, the file, the pattern …
 	Input   string // the full arguments, for display on demand
+	Status  ToolStatus
+	// Output is the part of the result kept: the error of a failure, the
+	// reason the user gave for a rejection, the short output of a command
+	// that succeeded. Empty when the result told nothing more, as a file
+	// read or a search.
+	Output string
 }
+
+// ToolStatus is how a tool call ended.
+type ToolStatus string
+
+const (
+	ToolOK          ToolStatus = ""            // succeeded, or no result was found
+	ToolFailed      ToolStatus = "failed"      // an error, or a command that exited non-zero
+	ToolRejected    ToolStatus = "rejected"    // the user declined it
+	ToolInterrupted ToolStatus = "interrupted" // the user stopped it
+)
 
 // Transcript is a session with its messages.
 type Transcript struct {
@@ -100,6 +121,12 @@ type Source interface {
 	Files() ([]string, error)
 	// Parse reads one session log.
 	Parse(path string) (*Transcript, error)
+}
+
+// Summarizer is a source that reads a session faster without the results
+// of its tool calls, which listing sessions does not need.
+type Summarizer interface {
+	Summarize(path string) (*Transcript, error)
 }
 
 // Decorator is a source that refreshes metadata kept outside the session

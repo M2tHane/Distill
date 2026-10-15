@@ -110,7 +110,7 @@ func TestPi(t *testing.T) {
 	}
 	check(t, load(t, s), []want{
 		{agentlog.User, "读一下 README", nil},
-		{agentlog.Assistant, "好的。", []string{"/tmp/proj/README.md"}},
+		{agentlog.Assistant, "好的。", []string{"/tmp/proj/README.md", "npm test"}},
 		{agentlog.Assistant, "README 说明了安装步骤。", nil},
 	})
 }
@@ -175,5 +175,53 @@ func TestTrash(t *testing.T) {
 	}
 	if items, _ := tr.List(); len(items) != 0 {
 		t.Fatalf("trash not empty: %+v", items)
+	}
+}
+
+// TestToolResults reads how the calls of each agent ended, and that the
+// user stopped a reply.
+func TestToolResults(t *testing.T) {
+	res := scan(t, "")
+	type result struct {
+		status agentlog.ToolStatus
+		output string
+	}
+	cases := map[agentlog.Agent][]result{
+		agentlog.Claude: {
+			{agentlog.ToolOK, "HUGE OUTPUT"},
+			{agentlog.ToolFailed, "String to replace not found in file.\nString: a"},
+		},
+		agentlog.Codex: {
+			{agentlog.ToolOK, "ok"},
+			{agentlog.ToolFailed, "Failed to find expected lines in /tmp/proj/a.go:\na"},
+			{agentlog.ToolOK, "a.go | 2 +-"},
+		},
+		agentlog.Pi: {
+			{agentlog.ToolOK, ""}, // a file read
+			{agentlog.ToolFailed, "FAIL src/a.test.ts\n  expected 1, got 2"},
+		},
+	}
+	for ag, want := range cases {
+		tr := load(t, byAgent(t, res, ag))
+		var got []result
+		interrupted := false
+		for _, m := range tr.Messages {
+			for _, tc := range m.Tools {
+				got = append(got, result{tc.Status, tc.Output})
+			}
+			interrupted = interrupted || m.Interrupted
+		}
+		if len(got) != len(want) {
+			t.Errorf("%s: %d calls %v, want %d", ag, len(got), got, len(want))
+			continue
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("%s call %d: got %q, want %q", ag, i, got[i], want[i])
+			}
+		}
+		if wantInt := ag != agentlog.Pi; interrupted != wantInt {
+			t.Errorf("%s: interrupted %v", ag, interrupted)
+		}
 	}
 }

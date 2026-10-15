@@ -7,7 +7,7 @@ description: 从 Distill 导出的 agent 会话记录中提炼长期有效的工
 
 ## 输入
 
-用户引用了若干会话记录（`runs/<id>/*.md`），其中 `## User` 是用户的输入，`## Assistant` 是助手的回复和工具调用摘要（没有工具输出）。
+用户引用了若干会话记录（`runs/<id>/*.md`），其中 `## User` 是用户的输入，`## Assistant` 是助手的回复和工具调用。工具调用后的 `→ failed` 带报错摘录，`→ rejected by the user` 后的 `>` 是用户拒绝的理由，`_(interrupted by the user)_` 是用户打断——这些往往就是用户的纠正。
 
 ## 选择类型
 
@@ -17,12 +17,12 @@ description: 从 Distill 导出的 agent 会话记录中提炼长期有效的工
 
 ## 步骤
 
-1. 读 `library/README.md` 和同类型已有的片段，避免重复。
+1. 读 `library/README.md` 和同类型已有的片段，避免重复。如果有 `runs/<id>/instructions/README.md`，也读项目现有的指令文件，不要写和它们重复或矛盾的内容；发现项目的指令文件已经过时，在回复里提醒用户用 distill-instructions-audit 检查。
 2. 读完所有被引用的会话，整理出 agent 每次开工都该知道的内容：
    - 用户是谁、偏好的沟通方式和语言；
    - 常用技术栈、构建/测试/运行命令；
    - 必须遵守的约束和反复出现的纠正；
-   - 常见坑和正确做法。
+   - 常见坑和正确做法（看 `→ failed` 的报错和最后成功的做法）。
 3. 写成简洁的 Markdown：front matter（`name`、`description`）+ 正文。正文会被原样插入 agent 的指令文件，所以：
    - 用小标题分组，每条一行，能执行、能检查；
    - 不写会话中没有依据的内容；

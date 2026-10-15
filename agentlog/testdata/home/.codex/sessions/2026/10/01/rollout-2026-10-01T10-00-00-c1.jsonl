@@ -7,6 +7,9 @@
 {"timestamp":"2026-10-01T10:00:04Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"go test ./...\",\"workdir\":\"/tmp/proj\"}","call_id":"a"}}
 {"timestamp":"2026-10-01T10:00:05Z","type":"response_item","payload":{"type":"function_call_output","call_id":"a","output":"ok"}}
 {"timestamp":"2026-10-01T10:00:06Z","type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","input":"*** Begin Patch\n*** Update File: /tmp/proj/a.go\n@@\n-a\n+b\n*** End Patch","call_id":"b"}}
+{"timestamp":"2026-10-01T10:00:06.5Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"b","output":"{\"output\": \"Failed to find expected lines in /tmp/proj/a.go:\\na\", \"metadata\": {\"exit_code\": 1}}"}}
 {"timestamp":"2026-10-01T10:00:07Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"text((await tools.exec_command({cmd:\"git diff --stat\"})).output)","call_id":"c"}}
+{"timestamp":"2026-10-01T10:00:07.5Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c","output":[{"type":"input_text","text":"Script completed\nWall time 0.1 seconds\nOutput:\n"},{"type":"input_text","text":"{\"chunk_id\": \"x\", \"exit_code\": 0, \"output\": \" a.go | 2 +-\\n\"}"}]}}
 {"timestamp":"2026-10-01T10:00:08Z","type":"event_msg","payload":{"type":"token_count"}}
 {"timestamp":"2026-10-01T10:00:09Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"测试通过。"}]}}
+{"timestamp":"2026-10-01T10:00:10Z","type":"event_msg","payload":{"type":"turn_aborted","turn_id":"t","reason":"interrupted"}}

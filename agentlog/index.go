@@ -12,7 +12,7 @@ import (
 )
 
 // cacheVersion changes whenever parsing changes what a Session holds.
-const cacheVersion = 3
+const cacheVersion = 4
 
 // Index lists sessions, reparsing only the logs that changed since the last
 // scan. Its cache file keeps the sessions between runs.
@@ -94,7 +94,13 @@ func (ix *Index) Scan(ctx context.Context) (ScanResult, error) {
 		go func() {
 			defer wg.Done()
 			for j := range ch {
-				t, err := j.src.Parse(j.path)
+				var t *Transcript
+				var err error
+				if sm, ok := j.src.(Summarizer); ok {
+					t, err = sm.Summarize(j.path)
+				} else {
+					t, err = j.src.Parse(j.path)
+				}
 				mu.Lock()
 				if err != nil {
 					res.Errors = append(res.Errors, err)

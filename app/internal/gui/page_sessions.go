@@ -105,7 +105,6 @@ func (s *sessionsState) rows(groups []*group) []row {
 
 func (a *app) sessionsPage(c *ui.Context) {
 	s := &a.sessions
-	t := c.Theme()
 	header(c, "会话", func() {
 		if s.scanning {
 			ui.Spinner(c).Size(14, 14)
@@ -121,13 +120,23 @@ func (a *app) sessionsPage(c *ui.Context) {
 			a.openTrash()
 		}
 	})
+	// The list on a white card; the transcript, when open, on another
+	// beside it.
+	// pane puts a card in its room, less the room around it.
+	pane := func(right, left float32, fill func()) {
+		ui.Column(c).Fill().MinWidth(0).Padding(0, right, 20, left).Children(func() {
+			card(c).Grow(1).MinHeight(0).MinWidth(0).Padding(0).Gap(0).Clip().Children(fill)
+		})
+	}
 	if s.view.session == nil {
-		ui.Column(c).Grow(1).MinHeight(0).Children(func() { a.sessionList(c) })
+		ui.Column(c).Grow(1).MinHeight(0).Children(func() {
+			pane(24, 28, func() { a.sessionList(c) })
+		})
 	} else {
 		ui.Split(c, &s.view.split, func() {
-			ui.Column(c).Fill().MinWidth(0).Children(func() { a.sessionList(c) })
+			pane(6, 28, func() { a.sessionList(c) })
 		}, func() {
-			ui.Column(c).Fill().MinWidth(0).BorderWidth(0, 0, 0, 1).BorderColor(t.Border).Children(func() { a.transcriptPane(c) })
+			pane(24, 6, func() { a.transcriptPane(c) })
 		}).Grow(1).MinHeight(0)
 	}
 	a.deleteDialog(c)
@@ -144,14 +153,14 @@ func (a *app) sessionList(c *ui.Context) {
 	}
 
 	// The agents' tabs and the filter.
-	ui.Row(c).Height(paneHeader).Padding(0, 16, 0, 20).Gap(10).Shrink(0).Children(func() {
+	ui.Row(c).Height(paneHeader+8).Padding(4, 14, 0, 14).Gap(10).Shrink(0).Children(func() {
 		a.agentTabs(c)
 		ui.Spacer(c)
 		searchBox(c, &s.query, "筛选会话").Grow(1).MinWidth(110).MaxWidth(240)
 	})
 
 	// Select all, and what the selection can do.
-	ui.Row(c).Padding(4, 16, 8, 20).Gap(10).Children(func() {
+	ui.Row(c).Padding(2, 14, 8, 18).Gap(10).Children(func() {
 		all, some := true, false
 		for _, x := range shown {
 			if _, ok := s.selected[x.Path]; ok {
@@ -195,7 +204,7 @@ func (a *app) sessionList(c *ui.Context) {
 		} else {
 			a.sessionRow(c, r.s)
 		}
-	}).Grow(1).Padding(0, 16, 16, 16).Children(func() {
+	}).Grow(1).Padding(0, 8, 8, 8).Children(func() {
 		if len(rows) == 0 {
 			msg := "没有会话"
 			if !s.loaded {
@@ -212,6 +221,7 @@ func (a *app) sessionList(c *ui.Context) {
 func (a *app) projectRow(c *ui.Context, g *group) {
 	s := &a.sessions
 	t := c.Theme()
+	p := colors(t)
 	open := s.expanded[g.dir] || s.query != ""
 	n := 0
 	for _, x := range g.sessions {
@@ -219,7 +229,11 @@ func (a *app) projectRow(c *ui.Context, g *group) {
 			n++
 		}
 	}
-	ui.Row(c).MarginY(4).Padding(10, 14).Gap(10).Radius(10).Background(ui.Hex("#F4F4F5")).Children(func() {
+	r := ui.Row(c).Padding(10, 14).Gap(10).Radius(10)
+	if r.Hovered() {
+		r.Background(p.subtle)
+	}
+	r.Children(func() {
 		v := n == len(g.sessions)
 		cb := ui.Checkbox(c.Key("cb"), &v, "")
 		if n > 0 && n < len(g.sessions) {
@@ -263,28 +277,23 @@ func (a *app) projectRow(c *ui.Context, g *group) {
 }
 
 // agentTabs chooses the agent whose sessions show: every agent, or one,
-// each with its mark and its count.
+// each with its mark and its count, which a transcript open beside the
+// list leaves no room for.
 func (a *app) agentTabs(c *ui.Context) {
 	s := &a.sessions
-	t := c.Theme()
-	seg := ui.SegmentedBase(c, &s.tab, len(env.Agents)+1)
-	seg.Track.Padding(3).Gap(2).Radius(9).Background(t.Surface).Shrink(0).Label("Agent").Children(func() {
-		for i := 0; i <= len(env.Agents); i++ {
-			label, n := "全部", len(s.all)
-			if i > 0 {
-				label, n = env.Agents[i-1].Label(), s.count(env.Agents[i-1])
-			}
-			b := seg.Segment(i).Padding(4, 10).Radius(7).Gap(6).Label(label)
-			if i == s.tab {
-				b.Background(t.Background).Shadow(0, 1, 2, 0, ui.RGBA(0, 0, 0, 0.1))
-			}
-			b.Children(func() {
-				if i > 0 {
-					agentMark(c, env.Agents[i-1], 16, true)
-				}
-				ui.Text(c, label).SingleLine()
-				muted(c, strconv.Itoa(n)).FontSize(12).SingleLine()
-			})
+	labels := []string{"全部"}
+	for _, ag := range env.Agents {
+		labels = append(labels, ag.Label())
+	}
+	segments(c, &s.tab, "Agent", labels, func(i int) {
+		n := len(s.all)
+		if i > 0 {
+			agentMark(c, env.Agents[i-1], 16, true)
+			n = s.count(env.Agents[i-1])
+		}
+		ui.Text(c, labels[i]).SingleLine()
+		if s.view.session == nil {
+			muted(c, strconv.Itoa(n)).FontSize(12).SingleLine()
 		}
 	})
 }
@@ -317,11 +326,11 @@ func (a *app) sessionRow(c *ui.Context, x *agentlog.Session) {
 	now := time.Now()
 	_, checked := s.selected[x.Path]
 	current := s.view.session != nil && s.view.session.Path == x.Path
-	r := ui.Row(c).Padding(8, 14, 8, 14).Gap(10).Radius(8)
+	r := ui.Row(c).Padding(8, 14, 8, 14).Gap(10).Radius(10)
 	if current {
-		r.Background(t.Accent.Alpha(0.08))
+		r.Background(t.Accent.Alpha(0.1))
 	} else if r.Hovered() {
-		r.Background(ui.RGBA(0, 0, 0, 0.03))
+		r.Background(colors(t).subtle)
 	}
 	r.Children(func() {
 		v := checked
@@ -375,7 +384,8 @@ func (a *app) selectionBar(c *ui.Context) {
 	if len(s.selected) == 0 {
 		return
 	}
-	ui.Row(c).Padding(10, 16, 10, 20).Gap(10).BorderWidth(1, 0, 0, 0).BorderColor(t.Border).Background(t.Background).Children(func() {
+	p := colors(t)
+	ui.Row(c).Padding(10, 14, 10, 18).Gap(10).BorderWidth(1, 0, 0, 0).BorderColor(t.Border).Background(p.card).Children(func() {
 		var parts []string
 		for _, ag := range env.Agents {
 			n := 0
@@ -388,8 +398,8 @@ func (a *app) selectionBar(c *ui.Context) {
 				parts = append(parts, fmt.Sprintf("%s %d", ag.Label(), n))
 			}
 		}
-		ui.Text(c, fmt.Sprintf("已选 %d 个", len(s.selected))).Bold()
-		muted(c, strings.Join(parts, " · ")).FontSize(12)
+		ui.Text(c, fmt.Sprintf("已选 %d 个", len(s.selected))).Bold().SingleLine().Shrink(0)
+		muted(c, strings.Join(parts, " · ")).FontSize(12).SingleLine().Shrink(1).MinWidth(0)
 		if ui.Button(c, "清空").Clicked() {
 			clear(s.selected)
 		}

@@ -65,6 +65,9 @@ type cxItem struct {
 	Arguments string          `json:"arguments"`
 	Input     string          `json:"input"`
 	Action    json.RawMessage `json:"action"`
+	CallID    string          `json:"call_id"`
+	Output    json.RawMessage `json:"output"`
+	Reason    string          `json:"reason"` // turn_aborted
 	// session_meta and turn_context
 	ID    string `json:"id"`
 	CWD   string `json:"cwd"`
@@ -75,15 +78,23 @@ var (
 	cxMeta     = []byte(`"type":"session_meta"`)
 	cxTurn     = []byte(`"type":"turn_context"`)
 	cxResponse = []byte(`"type":"response_item"`)
+	cxAborted  = []byte(`"payload":{"type":"turn_aborted"`)
 	cxSkip     = [][]byte{
+		[]byte(`"payload":{"type":"reasoning"`),
+	}
+	cxOutputs = [][]byte{
 		[]byte(`"payload":{"type":"function_call_output"`),
 		[]byte(`"payload":{"type":"custom_tool_call_output"`),
-		[]byte(`"payload":{"type":"reasoning"`),
 		[]byte(`"payload":{"type":"local_shell_call_output"`),
 	}
 )
 
-func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
+func (s *Source) Parse(path string) (*agentlog.Transcript, error) { return s.parse(path, true) }
+
+// Summarize reads a session without its tool results.
+func (s *Source) Summarize(path string) (*agentlog.Transcript, error) { return s.parse(path, false) }
+
+func (s *Source) parse(path string, results bool) (*agentlog.Transcript, error) {
 	b, f, err := parse.Open(path, agentlog.Codex)
 	if err != nil {
 		return nil, err
@@ -93,12 +104,20 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 	err = parse.Lines(f, func(line []byte) {
 		h := parse.Head(line, 160)
 		meta, turn := bytes.Contains(h, cxMeta), bytes.Contains(h, cxTurn)
-		if !meta && !turn && !bytes.Contains(h, cxResponse) {
+		aborted := bytes.Contains(h, cxAborted)
+		if !meta && !turn && !aborted && !bytes.Contains(h, cxResponse) {
 			return
 		}
 		for _, skip := range cxSkip {
 			if bytes.Contains(h, skip) {
 				return
+			}
+		}
+		if !results {
+			for _, skip := range cxOutputs {
+				if bytes.Contains(h, skip) {
+					return
+				}
 			}
 		}
 		var r cxRecord
@@ -121,6 +140,11 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 			b.Model(it.Model)
 			if b.T.CWD == "" {
 				b.T.CWD = it.CWD
+			}
+			return
+		case "event_msg":
+			if it.Type == "turn_aborted" && it.Reason == "interrupted" {
+				b.Interrupted(ts)
 			}
 			return
 		case "response_item":
@@ -149,13 +173,15 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 				b.AssistantText(text, ts)
 			}
 		case "function_call":
-			b.Tool(parse.NewToolCall(it.Name, json.RawMessage(it.Arguments)), ts)
+			b.Tool(withID(parse.NewToolCall(it.Name, json.RawMessage(it.Arguments)), it.CallID), ts)
 		case "custom_tool_call":
-			b.Tool(parse.TextToolCall(it.Name, it.Input), ts)
+			b.Tool(withID(parse.TextToolCall(it.Name, it.Input), it.CallID), ts)
 		case "local_shell_call":
-			b.Tool(parse.NewToolCall("shell", it.Action), ts)
+			b.Tool(withID(parse.NewToolCall("shell", it.Action), it.CallID), ts)
 		case "web_search_call":
 			b.Tool(parse.NewToolCall("web_search", it.Action), ts)
+		case "function_call_output", "custom_tool_call_output", "local_shell_call_output":
+			b.Result(it.CallID, outputText(it.Output), false)
 		}
 	})
 	if err != nil {
@@ -164,6 +190,34 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 	t := b.Finish(strings.TrimSuffix(filepath.Base(path), ".jsonl"))
 	s.Decorate(&t.Session)
 	return t, nil
+}
+
+func withID(tc agentlog.ToolCall, id string) agentlog.ToolCall {
+	tc.ID = id
+	return tc
+}
+
+// outputText is the text of a call's output: a string, or parts of text.
+func outputText(raw json.RawMessage) string {
+	if len(raw) > 0 && raw[0] == '"' {
+		var s string
+		json.Unmarshal(raw, &s)
+		return s
+	}
+	var parts []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &parts) != nil {
+		return ""
+	}
+	var texts []string
+	for _, p := range parts {
+		if p.Text != "" {
+			texts = append(texts, p.Text)
+		}
+	}
+	return strings.Join(texts, "\n")
 }
 
 // Decorate gives a session its thread name, which Codex keeps apart from the

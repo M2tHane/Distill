@@ -17,10 +17,14 @@ import (
 )
 
 // TestDistillE2E distills a real session into a temporary library with
-// Claude Code, as the app does: transcripts under runs/, the first prompt,
-// and a resource the agent writes.
+// Claude Code, as the app does: transcripts under runs/, the instruction
+// files, the first prompt, and a resource the agent writes.
 //
 //	DISTILL_E2E=1 go test -run E2E -v
+//
+// DISTILL_E2E_PROMPT picks a quick prompt by its label (by default, one
+// Rule), DISTILL_E2E_SESSION a session whose path contains it, and
+// DISTILL_E2E_MODEL the model (haiku by default).
 func TestDistillE2E(t *testing.T) {
 	if os.Getenv("DISTILL_E2E") == "" {
 		t.Skip("DISTILL_E2E not set")
@@ -41,8 +45,10 @@ func TestDistillE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 	var ref agentlog.Session
+	want := os.Getenv("DISTILL_E2E_SESSION")
 	for _, s := range res.Sessions {
-		if s.Agent == agentlog.Claude && s.Messages >= 6 && s.Messages <= 40 && s.CWD != real.Root {
+		if want != "" && strings.Contains(s.Path, want) ||
+			want == "" && s.Agent == agentlog.Claude && s.Messages >= 6 && s.Messages <= 40 && s.CWD != real.Root {
 			ref = s
 			break
 		}
@@ -50,20 +56,31 @@ func TestDistillE2E(t *testing.T) {
 	if ref.Path == "" {
 		t.Skip("no short Claude Code session")
 	}
-	files, _, err := a.exportRefs([]agentlog.Session{ref})
+	files, dir, err := a.exportRefs([]agentlog.Session{ref})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("ref %q → %v", ref.Title, files)
+	readme := a.snapshotInstructions([]agentlog.Session{ref}, dir)
+	t.Logf("ref %q → %v, %s", ref.Title, files, readme)
+	request := "从这个会话提炼 1 条 Rule（我对助手的要求或纠正），写成一个 Rule 文件。只写一个文件。"
+	for _, q := range quickPrompts {
+		if q.label == os.Getenv("DISTILL_E2E_PROMPT") {
+			request = q.text
+		}
+	}
+	model := os.Getenv("DISTILL_E2E_MODEL")
+	if model == "" {
+		model = "haiku"
+	}
 
 	info := env.Detect(p, agentlog.Claude)
 	before := a.lib.Signature()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	var log strings.Builder
 	_, err = runner.Run(ctx, runner.Request{
-		Info: info, Model: "haiku", Dir: root, SessionID: runner.NewUUID(),
-		Prompt: firstPrompt(p, files, "从这个会话提炼 1 条 Rule（我对助手的要求或纠正），写成一个 Rule 文件。只写一个文件。"),
+		Info: info, Model: model, Dir: root, SessionID: runner.NewUUID(),
+		Prompt: firstPrompt(p, files, readme, request),
 	}, func(ev runner.Event) {
 		switch {
 		case ev.Tool != nil:

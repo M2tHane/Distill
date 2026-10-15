@@ -71,6 +71,12 @@ func TestSnapshots(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	a.page = pageOverview
+	shot("0-overview")
+	tt.SetSize(860, 600)
+	shot("0b-overview-narrow")
+	tt.SetSize(1180, 780)
+	a.page = pageSessions
 	shot("1-sessions")
 
 	a.sessions.selected[first.Path] = first
@@ -103,4 +109,10 @@ func TestSnapshots(t *testing.T) {
 	}
 	a.page = pageLibrary
 	shot("5-library")
+
+	tt.SetDark(true)
+	a.page = pageOverview
+	shot("6-overview-dark")
+	a.page = pageSessions
+	shot("7-sessions-dark")
 }

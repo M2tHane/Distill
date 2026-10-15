@@ -48,8 +48,13 @@ type ccRecord struct {
 type ccBlock struct {
 	Type  string          `json:"type"`
 	Text  string          `json:"text"`
+	ID    string          `json:"id"`
 	Name  string          `json:"name"`
 	Input json.RawMessage `json:"input"`
+	// tool_result
+	ToolUseID string          `json:"tool_use_id"`
+	IsError   bool            `json:"is_error"`
+	Content   json.RawMessage `json:"content"`
 }
 
 var (
@@ -62,9 +67,15 @@ var (
 	// a tool_result block, which we can tell without decoding the line.
 	ccToolResult  = []byte(`"content":[{"tool_use_id"`)
 	ccToolResult2 = []byte(`"content":[{"type":"tool_result"`)
+	ccInterrupted = []byte(`[Request interrupted by user`)
 )
 
-func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
+func (s *Source) Parse(path string) (*agentlog.Transcript, error) { return s.parse(path, true) }
+
+// Summarize reads a session without its tool results.
+func (s *Source) Summarize(path string) (*agentlog.Transcript, error) { return s.parse(path, false) }
+
+func (s *Source) parse(path string, results bool) (*agentlog.Transcript, error) {
 	b, f, err := parse.Open(path, agentlog.Claude)
 	if err != nil {
 		return nil, err
@@ -77,7 +88,8 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 			!bytes.Contains(line, ccCustom) && !bytes.Contains(line, ccSummary) {
 			return
 		}
-		if user && (bytes.Contains(line, ccToolResult) || bytes.Contains(line, ccToolResult2)) {
+		if !results && user && (bytes.Contains(line, ccToolResult) || bytes.Contains(line, ccToolResult2)) &&
+			!bytes.Contains(line, ccInterrupted) {
 			return
 		}
 		var r ccRecord
@@ -116,6 +128,9 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 			if len(content) > 0 && content[0] == '"' {
 				var text string
 				if json.Unmarshal(content, &text) == nil {
+					if strings.HasPrefix(text, "[Request interrupted by user") {
+						b.Interrupted(ts)
+					}
 					b.User(cleanClaudeUser(text), ts)
 				}
 				return
@@ -128,11 +143,15 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 			for _, bl := range blocks {
 				switch bl.Type {
 				case "text":
-					if t := cleanClaudeUser(bl.Text); t != "" {
+					if strings.HasPrefix(bl.Text, "[Request interrupted by user") {
+						b.Interrupted(ts)
+					} else if t := cleanClaudeUser(bl.Text); t != "" {
 						parts = append(parts, t)
 					}
 				case "image":
 					parts = append(parts, "[image]")
+				case "tool_result":
+					b.Result(bl.ToolUseID, resultText(bl.Content), bl.IsError)
 				}
 			}
 			b.User(strings.Join(parts, "\n\n"), ts)
@@ -148,7 +167,9 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 			case "text":
 				b.AssistantText(bl.Text, ts)
 			case "tool_use":
-				b.Tool(parse.NewToolCall(bl.Name, bl.Input), ts)
+				tc := parse.NewToolCall(bl.Name, bl.Input)
+				tc.ID = bl.ID
+				b.Tool(tc, ts)
 			}
 		}
 	})
@@ -193,6 +214,30 @@ func cleanClaudeUser(text string) string {
 		return ""
 	}
 	return text
+}
+
+// resultText is the text of a tool result: a string, or blocks of text and
+// images.
+func resultText(raw json.RawMessage) string {
+	if len(raw) > 0 && raw[0] == '"' {
+		var s string
+		json.Unmarshal(raw, &s)
+		return s
+	}
+	var blocks []ccBlock
+	if json.Unmarshal(raw, &blocks) != nil {
+		return ""
+	}
+	var parts []string
+	for _, bl := range blocks {
+		switch bl.Type {
+		case "text":
+			parts = append(parts, bl.Text)
+		case "image":
+			parts = append(parts, "[image]")
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 func firstNonEmpty(s ...string) string {

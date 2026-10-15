@@ -22,24 +22,26 @@ func icon(paths string) *ui.SVG {
 }
 
 var (
-	iconTerminal = icon(`<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/>`)
-	iconChat     = icon(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>`)
-	iconLibrary  = icon(`<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>`)
-	iconTrash    = icon(`<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>`)
-	iconDownload = icon(`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>`)
-	iconX        = icon(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)
-	iconChevron  = icon(`<path d="m9 18 6-6-6-6"/>`)
-	iconSparkles = icon(`<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 3v4M17 5h4"/>`)
-	iconRefresh  = icon(`<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>`)
-	iconFile     = icon(`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>`)
-	iconRestore  = icon(`<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>`)
-	iconFolder   = icon(`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`)
-	iconExpand   = icon(`<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>`)
-	iconWrench   = icon(`<path d="M14.7 6.3a4 4 0 0 0 5 5L21 13l-8 8-3-3 8-8z" transform="translate(-2 0)"/><path d="M3 21l6-6"/>`)
-	iconSend     = icon(`<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>`)
-	iconStop     = icon(`<rect x="6" y="6" width="12" height="12" rx="2"/>`)
-	iconCopy     = icon(`<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`)
-	iconSkill    = icon(`<path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>`)
+	iconDashboard = icon(`<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>`)
+	iconTerminal  = icon(`<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/>`)
+	iconChat      = icon(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>`)
+	iconLibrary   = icon(`<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>`)
+	iconTrash     = icon(`<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>`)
+	iconDownload  = icon(`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>`)
+	iconX         = icon(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)
+	iconChevron   = icon(`<path d="m9 18 6-6-6-6"/>`)
+	iconSparkles  = icon(`<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 3v4M17 5h4"/>`)
+	iconRefresh   = icon(`<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>`)
+	iconFile      = icon(`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>`)
+	iconRestore   = icon(`<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>`)
+	iconFolder    = icon(`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`)
+	iconExpand    = icon(`<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>`)
+	iconWrench    = icon(`<path d="M14.7 6.3a4 4 0 0 0 5 5L21 13l-8 8-3-3 8-8z" transform="translate(-2 0)"/><path d="M3 21l6-6"/>`)
+	iconSend      = icon(`<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>`)
+	iconStop      = icon(`<rect x="6" y="6" width="12" height="12" rx="2"/>`)
+	iconCopy      = icon(`<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`)
+	iconReport    = icon(`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 18v-3M12 18v-6M16 18v-4"/>`)
+	iconSkill     = icon(`<path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>`)
 )
 
 // Colors of the agents, for counts and borders beside their logos.
@@ -172,7 +174,7 @@ var iconSearch = icon(`<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
 // toolkit's field does not take; Escape clears it.
 func searchBox(c *ui.Context, query *string, placeholder string) ui.Element {
 	t := c.Theme()
-	box := ui.Row(c).Gap(6).Padding(0, 4, 0, 10).Height(30).Radius(8).Background(t.Surface).Border(1, t.Border)
+	box := ui.Row(c).Gap(6).Padding(0, 4, 0, 10).Height(32).Radius(10).Background(colors(t).card).Border(1, t.Border)
 	box.Children(func() {
 		ui.Icon(c, iconSearch).FontSize(13).TextColor(t.TextMuted)
 		in := ui.TextInput(c.Key("q"), query).Placeholder(placeholder).Label(placeholder).Grow(1).
@@ -185,15 +187,22 @@ func searchBox(c *ui.Context, query *string, placeholder string) ui.Element {
 }
 
 // scrollSelect is a drop-down of many options whose list scrolls instead of
-// running off the window. It reports a new choice.
-// leading, when not nil, draws what goes before an option, as an icon.
+// running off the window, width wide (0 fills its container). It reports
+// a new choice. leading, when not nil, draws what goes before an option, as an icon.
 func scrollSelect(c *ui.Context, value *string, options []string, width float32, label string, leading func(string)) bool {
 	t := c.Theme()
 	old := *value
 	sel := ui.SelectBase(c, value)
-	trig := sel.Trigger.Width(width).Height(30).Padding(0, 10).Gap(6).Radius(8).Background(t.Surface).Border(1, t.Border).Label(label)
+	trig := sel.Trigger.Height(30).Padding(0, 10).Gap(6).Radius(8).Background(t.Surface).Border(1, t.Border).Label(label)
 	if trig.Hovered() {
 		trig.Background(t.SurfaceHover)
+	}
+	if width > 0 {
+		trig.Width(width)
+	} else {
+		trig.FillWidth()
+		// The list is as wide as the trigger was.
+		width = trig.LayoutBounds().W
 	}
 	trig.Children(func() {
 		if leading != nil {

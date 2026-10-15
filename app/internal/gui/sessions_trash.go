@@ -44,7 +44,7 @@ func (a *app) deleteSessions(c *ui.Context, list []agentlog.Session) {
 		a.ix.Forget(x.Path)
 		delete(s.selected, x.Path)
 		if s.view.session != nil && s.view.session.Path == x.Path {
-			s.view.close()
+			a.closeSession()
 		}
 	}
 	kept := s.all[:0:0]

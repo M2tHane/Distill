@@ -55,7 +55,6 @@ func (l *libraryState) status(it library.Item, ag agentlog.Agent) library.ApplyS
 
 func (a *app) libraryPage(c *ui.Context) {
 	l := &a.library
-	t := c.Theme()
 	if !l.loaded {
 		l.refresh(a)
 	}
@@ -70,13 +69,13 @@ func (a *app) libraryPage(c *ui.Context) {
 			mygo.Shell.OpenPath(a.p.Library)
 		}
 	})
-	ui.Scroll(c).Grow(1).Padding(4, 24, 24).Gap(14).Children(func() {
+	ui.Scroll(c).Grow(1).Padding(4, 28, 28).Gap(14).Children(func() {
 		ui.Row(c).Gap(10).Children(func() {
 			labels := []string{"全部"}
 			for _, k := range library.Kinds {
 				labels = append(labels, k.Label())
 			}
-			ui.Segmented(c, &l.kind, labels...).Label("类型")
+			textSegments(c, &l.kind, "类型", labels...)
 			ui.Spacer(c)
 			opts := []string{"按 Agent：全部"}
 			for _, ag := range env.Agents {
@@ -86,7 +85,7 @@ func (a *app) libraryPage(c *ui.Context) {
 			if sel == "" {
 				sel = opts[0]
 			}
-			if ui.Select(c, &sel, opts).Width(170).Label("按 Agent").Changed() {
+			if scrollSelect(c, &sel, opts, 170, "按 Agent", nil) {
 				l.agent = sel
 				if sel == opts[0] {
 					l.agent = ""
@@ -95,12 +94,12 @@ func (a *app) libraryPage(c *ui.Context) {
 		})
 
 		items := l.filter(l.items)
-		muted(c, "资源库中").FontSize(12)
+		caption(c, "资源库中").MarginY(4)
 		ui.Column(c).Gap(10).Children(func() {
 			if len(items) == 0 {
-				ui.Column(c).Padding(28).Radius(12).Border(1, t.Border).AlignItems(ui.Center).Gap(6).Children(func() {
-					muted(c, "资源库是空的")
-					muted(c, "在「会话」页勾选会话，点「AI 提炼」生成 Skill、Rule、AGENTS.md 或 CLAUDE.md。").FontSize(12)
+				card(c).Padding(32).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, "资源库是空的").FontSize(15).FontWeight(600)
+					muted(c, "在「会话」页勾选会话，点「AI 提炼」生成 Skill、Rule、AGENTS.md、CLAUDE.md 或诊断报告。").FontSize(12)
 				})
 			}
 			for _, it := range items {
@@ -108,25 +107,28 @@ func (a *app) libraryPage(c *ui.Context) {
 			}
 		})
 
-		ui.Row(c).Gap(12).MarginY(6).Children(func() {
-			ui.Text(c, "SKILLS 启用方式").FontSize(12).Bold().LetterSpacing(0.5)
-			mode := 0
+		card(c).Gap(10).MarginY(6).Children(func() {
+			ui.Row(c).Gap(12).Children(func() {
+				caption(c, "SKILLS 启用方式")
+				ui.Spacer(c)
+				mode := 0
+				if a.cfg.SkillsCopy {
+					mode = 1
+				}
+				if textSegments(c, &mode, "启用方式", "符号链接", "副本"); (mode == 1) != a.cfg.SkillsCopy {
+					a.cfg.SkillsCopy = mode == 1
+					a.saveConfig()
+				}
+			})
 			if a.cfg.SkillsCopy {
-				mode = 1
-			}
-			if ui.Segmented(c, &mode, "符号链接", "副本").FontSize(12).Label("启用方式").Changed() {
-				a.cfg.SkillsCopy = mode == 1
-				a.saveConfig()
+				muted(c, "副本是独立的文件：在 Distill 里编辑保存后会同步到各 Agent，在外面改资源库则不会。").FontSize(12)
+			} else {
+				muted(c, "符号链接跟着资源库里的 Skill 走：一更新，各 Agent 立刻就用上。Rule、AGENTS.md、CLAUDE.md 写入 Agent 的指令文件，保存时同步。").FontSize(12)
 			}
 		})
-		if a.cfg.SkillsCopy {
-			muted(c, "副本是独立的文件：在 Distill 里编辑保存后会同步到各 Agent，在外面改资源库则不会。").FontSize(11)
-		} else {
-			muted(c, "符号链接跟着资源库里的 Skill 走：一更新，各 Agent 立刻就用上。Rule、AGENTS.md、CLAUDE.md 写入 Agent 的指令文件，保存时同步。").FontSize(11)
-		}
 
 		if builtins := l.filter(l.builtins); len(builtins) > 0 {
-			muted(c, "内置").FontSize(12).MarginY(6)
+			caption(c, "内置").MarginY(4)
 			ui.Column(c).Gap(8).Children(func() {
 				for _, it := range builtins {
 					a.itemCard(c, it)
@@ -168,22 +170,28 @@ func (l *libraryState) filter(list []library.Item) []library.Item {
 func (a *app) itemCard(c *ui.Context, it library.Item) {
 	l := &a.library
 	t := c.Theme()
-	card := ui.Row(c.Key(it.ID())).Padding(10, 14).Gap(12).Radius(12).Border(1, t.Border).Background(t.Background)
-	if card.Hovered() {
-		card.Shadow(0, 2, 8, 0, ui.RGBA(0, 0, 0, 0.06))
+	p := colors(t)
+	row := ui.Row(c.Key(it.ID())).Padding(12, 16).Gap(12).Radius(14).Background(p.card)
+	if row.Hovered() {
+		row.Shadow(0, 4, 16, 0, p.shadow)
+	} else {
+		row.Shadow(0, 1, 4, 0, p.shadow)
 	}
-	card.Children(func() {
+	row.Children(func() {
 		svg := iconFile
-		if it.Kind == library.KindSkill {
+		switch it.Kind {
+		case library.KindSkill:
 			svg = iconSkill
+		case library.KindReport:
+			svg = iconReport
 		}
-		ui.Box(c).Size(30, 30).Radius(7).Background(ui.Hex("#F4F4F5")).Center().Children(func() {
+		ui.Box(c).Size(34, 34).Radius(10).Background(p.subtle).Center().Children(func() {
 			ui.Icon(c, svg).FontSize(14).TextColor(t.TextMuted)
 		})
 		body := ui.Column(c).Grow(1).MinWidth(0).Gap(3).Cursor(ui.CursorPointer).Children(func() {
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Text(c, it.Name).FontSize(13).Bold().SingleLine().Shrink(1)
-				chip(c, it.Kind.Label(), t.TextMuted, ui.Hex("#F4F4F5"))
+				chip(c, it.Kind.Label(), t.TextMuted, p.subtle)
 			})
 			muted(c, it.Description).FontSize(11).SingleLine()
 		})
@@ -193,6 +201,10 @@ func (a *app) itemCard(c *ui.Context, it library.Item) {
 		if !it.Builtin && iconButton(c, iconTrash, "删除").Clicked() {
 			l.toRemove = it
 			l.confirmRemove = true
+		}
+		if !it.Kind.Appliable() {
+			// A report is read, not applied.
+			return
 		}
 
 		// Apply to every installed agent, or take it off them all.
@@ -268,6 +280,9 @@ func (a *app) openEditor(it library.Item) {
 	l.editText = string(data)
 	l.editSaved = l.editText
 	l.preview = 0
+	if !it.Kind.Appliable() {
+		l.preview = 1
+	}
 	l.editOpen = true
 }
 
@@ -278,6 +293,7 @@ func (a *app) editorDialog(c *ui.Context) {
 		return
 	}
 	it := *l.editing
+	p := colors(t)
 	dirty := l.editText != l.editSaved
 	ui.DialogBase(c, &l.editOpen, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.3))
@@ -285,9 +301,9 @@ func (a *app) editorDialog(c *ui.Context) {
 			Shadow(0, 16, 48, 0, ui.RGBA(0, 0, 0, 0.28))
 		ui.Row(c).Gap(10).Children(func() {
 			ui.Text(c, it.Name).FontSize(17).Bold()
-			chip(c, it.Kind.Label(), t.TextMuted, ui.Hex("#F4F4F5"))
+			chip(c, it.Kind.Label(), t.TextMuted, p.subtle)
 			if it.Builtin {
-				chip(c, "内置 · 只读", t.TextMuted, ui.Hex("#F4F4F5"))
+				chip(c, "内置 · 只读", t.TextMuted, p.subtle)
 			}
 			ui.Spacer(c)
 			if iconButton(c, iconFolder, "在 Finder 中显示").Clicked() {

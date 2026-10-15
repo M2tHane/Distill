@@ -1,7 +1,8 @@
 {"type":"session","version":3,"id":"p1","timestamp":"2026-10-01T10:00:00Z","cwd":"/tmp/proj"}
 {"type":"model_change","id":"m","parentId":null,"timestamp":"2026-10-01T10:00:00Z","provider":"x","modelId":"y"}
 {"type":"message","id":"1","parentId":"m","timestamp":"2026-10-01T10:00:01Z","message":{"role":"user","content":"读一下 README"}}
-{"type":"message","id":"2","parentId":"1","timestamp":"2026-10-01T10:00:02Z","message":{"role":"assistant","model":"gpt-6","content":[{"type":"thinking","thinking":"hmm"},{"type":"text","text":"好的。"},{"type":"toolCall","id":"t","name":"read","arguments":{"path":"/tmp/proj/README.md"}}]}}
+{"type":"message","id":"2","parentId":"1","timestamp":"2026-10-01T10:00:02Z","message":{"role":"assistant","model":"gpt-6","content":[{"type":"thinking","thinking":"hmm"},{"type":"text","text":"好的。"},{"type":"toolCall","id":"t","name":"read","arguments":{"path":"/tmp/proj/README.md"}},{"type":"toolCall","id":"u","name":"bash","arguments":{"command":"npm test"}}]}}
 {"type":"message","id":"3","parentId":"2","timestamp":"2026-10-01T10:00:03Z","message":{"role":"toolResult","toolCallId":"t","content":[{"type":"text","text":"HUGE"}]}}
+{"type":"message","id":"3b","parentId":"3","timestamp":"2026-10-01T10:00:03Z","message":{"role":"toolResult","toolCallId":"u","toolName":"bash","isError":true,"content":[{"type":"text","text":"FAIL src/a.test.ts\n  expected 1, got 2\n\nCommand exited with code 1"}]}}
 {"type":"message","id":"4","parentId":"3","timestamp":"2026-10-01T10:00:04Z","message":{"role":"assistant","model":"gpt-6","content":[{"type":"text","text":"README 说明了安装步骤。"}]}}
 {"type":"session_info","id":"5","parentId":"4","timestamp":"2026-10-01T10:00:05Z","name":"读 README"}

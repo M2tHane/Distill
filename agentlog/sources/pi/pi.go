@@ -27,14 +27,19 @@ type piRecord struct {
 	CWD       string `json:"cwd"`
 	Name      string `json:"name"`
 	Message   *struct {
-		Role    string          `json:"role"`
-		Model   string          `json:"model"`
-		Content json.RawMessage `json:"content"`
+		Role       string          `json:"role"`
+		Model      string          `json:"model"`
+		Content    json.RawMessage `json:"content"`
+		StopReason string          `json:"stopReason"`
+		// toolResult
+		ToolCallID string `json:"toolCallId"`
+		IsError    bool   `json:"isError"`
 	} `json:"message"`
 }
 
 type piBlock struct {
 	Type      string          `json:"type"`
+	ID        string          `json:"id"`
 	Text      string          `json:"text"`
 	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments"`
@@ -47,7 +52,12 @@ var (
 	piToolResult = []byte(`"role":"toolResult"`)
 )
 
-func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
+func (s *Source) Parse(path string) (*agentlog.Transcript, error) { return s.parse(path, true) }
+
+// Summarize reads a session without its tool results.
+func (s *Source) Summarize(path string) (*agentlog.Transcript, error) { return s.parse(path, false) }
+
+func (s *Source) parse(path string, results bool) (*agentlog.Transcript, error) {
 	b, f, err := parse.Open(path, agentlog.Pi)
 	if err != nil {
 		return nil, err
@@ -59,7 +69,7 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 		if !bytes.Contains(h, piSession) && !bytes.Contains(h, piInfo) && !bytes.Contains(h, piMessage) {
 			return
 		}
-		if bytes.Contains(h, piToolResult) {
+		if !results && bytes.Contains(h, piToolResult) {
 			return
 		}
 		var r piRecord
@@ -117,9 +127,25 @@ func (s *Source) Parse(path string) (*agentlog.Transcript, error) {
 				case "text":
 					b.AssistantText(bl.Text, ts)
 				case "toolCall":
-					b.Tool(parse.NewToolCall(bl.Name, bl.Arguments), ts)
+					tc := parse.NewToolCall(bl.Name, bl.Arguments)
+					tc.ID = bl.ID
+					b.Tool(tc, ts)
 				}
 			}
+			if r.Message.StopReason == "aborted" {
+				b.Interrupted(ts)
+			}
+		case "toolResult":
+			var parts []string
+			for _, bl := range blocks {
+				switch bl.Type {
+				case "text":
+					parts = append(parts, bl.Text)
+				case "image":
+					parts = append(parts, "[image]")
+				}
+			}
+			b.Result(r.Message.ToolCallID, strings.Join(parts, "\n"), r.Message.IsError)
 		}
 	})
 	if err != nil {

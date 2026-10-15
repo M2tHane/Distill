@@ -1,5 +1,6 @@
 // Package library is the library of resources (skills, rules, AGENTS.md and
-// CLAUDE.md pieces) and applying them to agents.
+// CLAUDE.md pieces) and applying them to agents, and of the reports the
+// user reads, which are not applied.
 package library
 
 import (
@@ -22,9 +23,15 @@ const (
 	KindRule   Kind = "rule"
 	KindAgents Kind = "agents"
 	KindClaude Kind = "claude"
+	// KindReport is a document for the user: a review of a project's
+	// problems, advice on prompts, a check of instruction files.
+	KindReport Kind = "report"
 )
 
-var Kinds = []Kind{KindSkill, KindRule, KindAgents, KindClaude}
+var Kinds = []Kind{KindSkill, KindRule, KindAgents, KindClaude, KindReport}
+
+// Appliable reports whether resources of the kind go to agents.
+func (k Kind) Appliable() bool { return k != KindReport }
 
 func (k Kind) Label() string {
 	switch k {
@@ -36,6 +43,8 @@ func (k Kind) Label() string {
 		return "AGENTS.md"
 	case KindClaude:
 		return "CLAUDE.md"
+	case KindReport:
+		return "报告"
 	}
 	return string(k)
 }
@@ -51,6 +60,8 @@ func (k Kind) Dir() string {
 		return "agents-md"
 	case KindClaude:
 		return "claude-md"
+	case KindReport:
+		return "reports"
 	}
 	return string(k)
 }

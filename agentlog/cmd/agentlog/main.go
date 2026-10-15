@@ -100,7 +100,7 @@ func show(args []string) {
 		enc.Encode(t)
 		return
 	}
-	agentlog.WriteMarkdown(os.Stdout, t, agentlog.MarkdownOptions{ToolInputs: *inputs})
+	agentlog.WriteMarkdown(os.Stdout, t, agentlog.MarkdownOptions{ToolInputs: *inputs, ToolResults: true})
 }
 
 func size(n int64) string {

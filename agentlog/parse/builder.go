@@ -17,8 +17,9 @@ import (
 // Builder assembles a transcript from the records of a log, in order: a
 // source calls User, AssistantText and Tool as it reads them, then Finish.
 type Builder struct {
-	T   *agentlog.Transcript // what was read so far, and the session's metadata
-	cur *agentlog.Message    // the assistant message being built
+	T     *agentlog.Transcript // what was read so far, and the session's metadata
+	cur   *agentlog.Message    // the assistant message being built
+	calls map[string][2]int    // where each call is, by its ID: message, tool
 }
 
 func Open(path string, agent agentlog.Agent) (*Builder, *os.File, error) {
@@ -80,6 +81,37 @@ func (b *Builder) Tool(tc agentlog.ToolCall, ts time.Time) {
 		b.newAssistant(ts)
 	}
 	b.cur.Tools = append(b.cur.Tools, tc)
+	if tc.ID != "" {
+		if b.calls == nil {
+			b.calls = map[string][2]int{}
+		}
+		b.calls[tc.ID] = [2]int{len(b.T.Messages) - 1, len(b.cur.Tools) - 1}
+	}
+}
+
+// Result gives the call of an ID its result; see ToolResult.
+func (b *Builder) Result(id, text string, isError bool) {
+	at, ok := b.calls[id]
+	if !ok {
+		return
+	}
+	ToolResult(&b.T.Messages[at[0]].Tools[at[1]], text, isError)
+}
+
+// Interrupted notes that the user stopped the assistant's reply. A reply
+// stopped before it said or did anything is an empty message, so the
+// interruption shows.
+func (b *Builder) Interrupted(ts time.Time) {
+	n := len(b.T.Messages)
+	if n == 0 {
+		return
+	}
+	m := &b.T.Messages[n-1]
+	if m.Role != agentlog.Assistant {
+		m = b.newAssistant(ts)
+	}
+	m.Interrupted = true
+	b.cur = nil
 }
 
 func (b *Builder) newAssistant(ts time.Time) *agentlog.Message {

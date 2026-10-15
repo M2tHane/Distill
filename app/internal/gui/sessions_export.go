@@ -77,7 +77,7 @@ func (a *app) writeMarkdown(x agentlog.Session, out string) error {
 	if err != nil {
 		return err
 	}
-	if err := agentlog.WriteMarkdown(f, t, agentlog.MarkdownOptions{}); err != nil {
+	if err := agentlog.WriteMarkdown(f, t, agentlog.MarkdownOptions{ToolResults: true}); err != nil {
 		f.Close()
 		return err
 	}

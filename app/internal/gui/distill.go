@@ -12,6 +12,7 @@ import (
 
 	"github.com/M2tHane/Distill/agentlog"
 	"github.com/M2tHane/Distill/app/internal/env"
+	"github.com/M2tHane/Distill/app/internal/instructions"
 	"github.com/M2tHane/Distill/app/internal/library"
 	"github.com/M2tHane/Distill/app/internal/runner"
 )
@@ -37,9 +38,12 @@ type distillState struct {
 	changed   []string // resources the last run wrote
 }
 
-// quickPrompts start a request for each kind of resource.
+// quickPrompts start a request for each kind of resource, and each report.
 var quickPrompts = []struct{ label, text string }{
+	{"项目问题诊断", "请使用 distill-review，找出这些会话里项目开发中的问题（反复出现的报错、走过的弯路、环境和流程上的坑），写成一份诊断报告。"},
 	{"生成 Skill", "请使用 distill-skill，根据这些会话提炼可复用的 Skill。"},
+	{"提示词诊断", "请使用 distill-prompts，分析我在这些会话里写的提示词有哪些问题，教我怎么改进，写成一份报告。"},
+	{"检查 CLAUDE.md / AGENTS.md", "请使用 distill-instructions-audit，检查这些项目的 CLAUDE.md、AGENTS.md 是否已经过时、和现在的开发有冲突，写成一份报告。"},
 	{"提炼 Rules", "请使用 distill-rule，从这些会话中提炼我的偏好、约束和纠正，写成 Rule。"},
 	{"写 AGENTS.md", "请使用 distill-instructions，根据这些会话写一份 AGENTS.md 片段。"},
 	{"写 CLAUDE.md", "请使用 distill-instructions，根据这些会话写一份 CLAUDE.md 片段。"},
@@ -169,7 +173,7 @@ func (a *app) distillDialog(c *ui.Context) {
 			if len(d.msgs) == 0 {
 				ui.Column(c).Padding(40, 24).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, "告诉 AI 你想从这些会话里得到什么").FontSize(15).Bold()
-					muted(c, "它会读取引用的会话记录，用内置 Skill 生成 Skill、Rule、AGENTS.md 或 CLAUDE.md，写进资源库。").TextAlign(ui.Center)
+					muted(c, "它会读取引用的会话记录（含失败的报错）和项目的指令文件，用内置 Skill 诊断项目问题和提示词、检查 CLAUDE.md / AGENTS.md 是否过时，或者生成 Skill、Rule、AGENTS.md、CLAUDE.md，写进资源库。").TextAlign(ui.Center)
 				})
 			}
 		})
@@ -303,7 +307,7 @@ func (a *app) send(runners []agentlog.Agent) {
 				return
 			}
 			a.win.Update(func() { d.refFiles, d.runDir = files, dir })
-			req.Prompt = firstPrompt(a.p, files, text)
+			req.Prompt = firstPrompt(a.p, files, a.snapshotInstructions(refs, dir), text)
 		} else {
 			req.Prompt = text
 		}
@@ -371,22 +375,43 @@ func (a *app) exportRefs(refs []agentlog.Session) ([]string, string, error) {
 	return files, dir, nil
 }
 
-func firstPrompt(p env.Paths, files []string, request string) string {
+// snapshotInstructions copies the instruction files of the sessions'
+// projects, and the user's, next to the transcripts, and returns the path
+// of their README from the agents' working directory; "" when there are
+// none.
+func (a *app) snapshotInstructions(refs []agentlog.Session, dir string) string {
+	var dirs []string
+	for _, x := range refs {
+		dirs = append(dirs, x.CWD)
+	}
+	readme, err := instructions.Snapshot(filepath.Join(dir, "instructions"), instructions.Find(a.p.Home, dirs), time.Now())
+	if err != nil || readme == "" {
+		return ""
+	}
+	rel, _ := filepath.Rel(a.p.Root, readme)
+	return rel
+}
+
+func firstPrompt(p env.Paths, files []string, instructionsReadme, request string) string {
 	var b strings.Builder
 	b.WriteString("你在 Distill 中工作，工作目录是 " + p.Root + "。\n\n")
-	b.WriteString("用户引用了以下会话记录（Markdown，只含用户输入、助手回复和工具调用摘要，没有工具输出）：\n")
+	b.WriteString("用户引用了以下会话记录（Markdown：用户输入、助手回复、工具调用；工具结果只保留了失败的报错、用户拒绝或中断、命令的简短输出，开头汇总了重复出现的错误）：\n")
 	for _, f := range files {
 		b.WriteString("- " + f + "\n")
+	}
+	if instructionsReadme != "" {
+		b.WriteString("\n这些会话所在项目的 CLAUDE.md、AGENTS.md 等指令文件的副本，以及它们的修改时间、之后的提交和已不存在的路径，见 " + instructionsReadme + "。\n")
 	}
 	b.WriteString(`
 资源库在 library/，格式见 library/README.md：
 - Skill：library/skills/<name>/SKILL.md
 - Rule：library/rules/<name>.md
-- AGENTS.md 片段：library/env.Agents-md/<name>.md
+- AGENTS.md 片段：library/agents-md/<name>.md
 - CLAUDE.md 片段：library/claude-md/<name>.md
+- 报告（给用户看的文档，不会应用到 agent）：library/reports/<日期>-<name>.md
 
-按用户的需求，使用对应的内置 Skill（distill-skill、distill-rule、distill-instructions）；如果这些 Skill 不可用，就按 library/README.md 的格式直接写。
-只在 library/ 中创建或修改文件，不要改动其它位置。完成后列出写入的文件。
+内置 Skill 在 builtin/skills/<name>/SKILL.md：distill-skill、distill-rule、distill-instructions、distill-review（项目问题诊断）、distill-prompts（提示词诊断）、distill-instructions-audit（检查指令文件是否过时）。按用户的需求先读对应的那个，照它做。
+只在 library/ 中创建或修改文件；可以读项目里的文件来核实，但不要改动 library/ 以外的任何文件。完成后列出写入的文件。
 
 用户的需求：
 `)

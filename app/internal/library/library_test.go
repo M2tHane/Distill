@@ -150,3 +150,30 @@ func TestApplyBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestReports lists a report with the resources, but never applies it.
+func TestReports(t *testing.T) {
+	p, l := testLibrary(t)
+	path := filepath.Join(p.Library, "reports", "2026-10-15-review.md")
+	os.MkdirAll(filepath.Dir(path), 0o755)
+	os.WriteFile(path, []byte("---\nname: 2026-10-15-review\ndescription: AskData 的问题复盘。\n---\n\n# 复盘\n"), 0o644)
+	it := find(t, l, "report/2026-10-15-review")
+	if it.Description != "AskData 的问题复盘。" || it.Kind.Appliable() {
+		t.Fatalf("report: %+v", it)
+	}
+	if err := Apply(p, it, agentlog.Claude, false); err == nil {
+		t.Error("applied a report")
+	}
+	if st := Status(p, it, agentlog.Claude); st.Applied {
+		t.Error("a report is applied")
+	}
+	if _, err := os.Stat(filepath.Join(p.Home, ".claude", "CLAUDE.md")); err == nil {
+		t.Error("a report went into CLAUDE.md")
+	}
+	if err := l.Remove(it); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); err == nil {
+		t.Error("the report is still there")
+	}
+}
