@@ -188,10 +188,11 @@ func searchBox(c *ui.Context, query *string, placeholder string) ui.Element {
 
 // scrollSelect is a drop-down of many options whose list scrolls instead of
 // running off the window, width wide (0 fills its container). It reports
-// a new choice. leading, when not nil, draws what goes before an option, as an icon.
+// a new choice, in the frame after the user made it: the select sets
+// *value after the frame that built it, so value must outlive the frame,
+// as a field of the app's state does and a local variable does not. leading, when not nil, draws what goes before an option, as an icon.
 func scrollSelect(c *ui.Context, value *string, options []string, width float32, label string, leading func(string)) bool {
 	t := c.Theme()
-	old := *value
 	sel := ui.SelectBase(c, value)
 	trig := sel.Trigger.Height(30).Padding(0, 10).Gap(6).Radius(8).Background(t.Surface).Border(1, t.Border).Label(label)
 	if trig.Hovered() {
@@ -229,5 +230,5 @@ func scrollSelect(c *ui.Context, value *string, options []string, width float32,
 			}
 		})
 	})
-	return *value != old
+	return trig.Changed()
 }

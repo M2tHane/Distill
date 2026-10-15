@@ -30,7 +30,7 @@ func TestRunners(t *testing.T) {
 				t.Skip("not installed")
 			}
 			dir := testutil.AgentDir(t)
-			req := Request{Info: info, Model: models[ag], Dir: dir, SessionID: NewUUID()}
+			req := Request{Info: info, Model: models[ag], Effort: "low", Dir: dir, SessionID: NewUUID()}
 			turn := func(prompt string) string {
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 				defer cancel()

@@ -20,6 +20,11 @@ type libraryState struct {
 	kind  int    // 0: every kind, then kinds[kind-1]
 	agent string // "": every agent, else the label of an agent it is applied to
 
+	// How skills are applied, as the control shows it: mode, which the
+	// control sets after the frame, and modeShown, what the configuration
+	// gave. 0: symbolic links, 1: copies.
+	mode, modeShown int
+
 	editing   *library.Item
 	preview   int // 0: edit, 1: preview
 	editOpen  bool
@@ -111,14 +116,20 @@ func (a *app) libraryPage(c *ui.Context) {
 			ui.Row(c).Gap(12).Children(func() {
 				caption(c, "SKILLS 启用方式")
 				ui.Spacer(c)
-				mode := 0
+				want := 0
 				if a.cfg.SkillsCopy {
-					mode = 1
+					want = 1
 				}
-				if textSegments(c, &mode, "启用方式", "符号链接", "副本"); (mode == 1) != a.cfg.SkillsCopy {
-					a.cfg.SkillsCopy = mode == 1
+				switch {
+				case l.mode != l.modeShown:
+					// Chosen since the last frame.
+					a.cfg.SkillsCopy = l.mode == 1
 					a.saveConfig()
+					l.modeShown = l.mode
+				case want != l.modeShown:
+					l.mode, l.modeShown = want, want
 				}
+				textSegments(c, &l.mode, "启用方式", "符号链接", "副本")
 			})
 			if a.cfg.SkillsCopy {
 				muted(c, "副本是独立的文件：在 Distill 里编辑保存后会同步到各 Agent，在外面改资源库则不会。").FontSize(12)

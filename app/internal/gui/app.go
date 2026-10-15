@@ -43,8 +43,9 @@ type app struct {
 	lib      library.Library
 	page     page
 
-	infos map[agentlog.Agent]*env.AgentInfo
-	md    *mdView // Markdown parsed, for every view
+	infos      map[agentlog.Agent]*env.AgentInfo
+	modelPicks map[agentlog.Agent]*modelPick
+	md         *mdView // Markdown parsed, for every view
 
 	overview overviewState
 	sessions sessionsState
@@ -278,15 +279,13 @@ func (a *app) sidebar(c *ui.Context) {
 		})
 		ui.Column(c).Grow(1).Padding(10, 12, 14).Gap(4).Children(func() {
 			a.navItem(c, pageOverview, iconDashboard, "概览", "")
+			a.navItem(c, pageAgents, iconTerminal, "Agent", "")
 			n := ""
 			if len(a.sessions.all) > 0 {
 				n = strconv.Itoa(len(a.sessions.all))
 			}
 			a.navItem(c, pageSessions, iconChat, "会话", n)
 			a.navItem(c, pageLibrary, iconLibrary, "资源库", "")
-			ui.Spacer(c)
-			ui.Box(c).Height(1).Margin(6, 4).Background(t.Border)
-			a.navItem(c, pageAgents, iconTerminal, "Agent", "")
 		})
 	})
 }

@@ -21,11 +21,16 @@ var Agents = []agentlog.Agent{agentlog.Claude, agentlog.Codex, agentlog.Pi}
 
 // AgentInfo is what Distill found of an agent on this computer.
 type AgentInfo struct {
-	Agent     agentlog.Agent
-	Bin       string // empty when not installed
-	Version   string
-	Models    []string
-	Detecting bool
+	Agent   agentlog.Agent
+	Bin     string // empty when not installed
+	Version string
+	Models  []string
+	// DefaultModel is the model the agent runs without one chosen, when
+	// its configuration says.
+	DefaultModel string
+	Detecting    bool
+	// efforts are the effort levels of the models, by lowercase name.
+	efforts map[string][]string
 }
 
 func (a AgentInfo) Installed() bool { return a.Bin != "" }
@@ -56,6 +61,7 @@ func Detect(p Paths, a agentlog.Agent) AgentInfo {
 	case agentlog.Claude:
 		info.Models = ClaudeModels(p)
 	case agentlog.Codex:
+		codexEfforts(p, &info)
 		var cache struct {
 			Models []struct {
 				Slug string `json:"slug"`
@@ -69,15 +75,20 @@ func Detect(p Paths, a agentlog.Agent) AgentInfo {
 			}
 		}
 	case agentlog.Pi:
+		thinks := map[string]bool{}
 		if out, err := exec.CommandContext(ctx, bin, "--list-models").Output(); err == nil {
 			sc := bufio.NewScanner(bytes.NewReader(out))
 			for sc.Scan() {
+				// provider, model, context, max-out, thinking, images
 				f := strings.Fields(sc.Text())
 				if len(f) >= 2 && f[0] != "provider" {
-					info.Models = append(info.Models, f[0]+"/"+f[1])
+					m := f[0] + "/" + f[1]
+					info.Models = append(info.Models, m)
+					thinks[m] = len(f) >= 5 && f[4] == "yes"
 				}
 			}
 		}
+		piEfforts(p, &info, thinks)
 	}
 	return info
 }

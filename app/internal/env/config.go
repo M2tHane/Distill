@@ -22,7 +22,8 @@ type Config struct {
 // AgentConfig is what the user chose for an agent.
 type AgentConfig struct {
 	Enabled bool   `json:"enabled"`
-	Model   string `json:"model"` // empty: the agent's default
+	Model   string `json:"model"`  // empty: the agent's default
+	Effort  string `json:"effort"` // empty: the model's default
 }
 
 // LoadConfig reads the configuration, with defaults for what it lacks.

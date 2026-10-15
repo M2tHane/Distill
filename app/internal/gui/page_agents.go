@@ -15,22 +15,41 @@ import (
 
 const defaultModel = "默认模型"
 
+// modelPick is an agent's model as its select shows it: value, which the
+// select sets after the frame, and shown, what the configuration gave.
+type modelPick struct{ value, shown string }
+
 // modelSelect chooses an agent's model: its default, or one it offers.
 func (a *app) modelSelect(c *ui.Context, ag agentlog.Agent, width float32) {
 	cfg := a.cfg.Agents[ag]
 	options := append([]string{defaultModel}, a.infos[ag].Models...)
 	model := cfg.Model
 	if model == "" || !slices.Contains(options, model) {
-		// A model no longer offered, as after the settings changed, is the default.
+		// A model no longer offered, as after the settings changed, or not
+		// yet listed while the agent is detected, shows as the default.
 		model = defaultModel
 	}
-	if scrollSelect(c, &model, options, width, "模型", nil) {
-		if model == defaultModel {
-			model = ""
-		}
-		cfg.Model = model
-		a.saveConfig()
+	if a.modelPicks == nil {
+		a.modelPicks = map[agentlog.Agent]*modelPick{}
 	}
+	p := a.modelPicks[ag]
+	if p == nil {
+		p = &modelPick{model, model}
+		a.modelPicks[ag] = p
+	}
+	switch {
+	case p.value != p.shown:
+		// Chosen since the last frame.
+		cfg.Model = p.value
+		if p.value == defaultModel {
+			cfg.Model = ""
+		}
+		a.saveConfig()
+		p.shown = p.value
+	case model != p.shown:
+		p.value, p.shown = model, model
+	}
+	scrollSelect(c, &p.value, options, width, "模型", nil)
 }
 
 func (a *app) agentsPage(c *ui.Context) {
@@ -44,81 +63,66 @@ func (a *app) agentsPage(c *ui.Context) {
 	})
 	ui.Scroll(c).Grow(1).Padding(4, 28, 28).Gap(18).Children(func() {
 		muted(c, "启用的 Agent 才能在「提炼」时选择，所选模型就是提炼时使用的模型。内置 Skill 会安装到对应 Agent 的 skills 目录。")
-		// As many columns as fit, cards at least 280 wide.
+		// The model select narrows with the window.
 		w, _ := c.Size()
-		cols := max(1, min(len(env.Agents), int((w-220-56+18)/(280+18))))
-		ui.Grid(c).Columns(cols).Gap(18).Children(func() {
-			for _, ag := range env.Agents {
-				a.agentCard(c, ag)
+		selectW := min(260, max(170, (w-860)/2+170))
+		card(c).Padding(0).Gap(0).Children(func() {
+			for i, ag := range env.Agents {
+				a.agentRow(c, ag, selectW, i == len(env.Agents)-1)
 			}
 		})
 	})
 }
 
-// agentCard shows an agent: whether it is installed and on, its version
-// and where it is, its model and its built-in skills.
-func (a *app) agentCard(c *ui.Context, ag agentlog.Agent) {
+// agentRow shows an agent in a row of the list: its logo, name and version,
+// whether it is installed and on, then its built-in skills, its model and
+// its switch.
+func (a *app) agentRow(c *ui.Context, ag agentlog.Agent, selectW float32, last bool) {
 	t := c.Theme()
-	p := colors(t)
 	info := a.infos[ag]
 	cfg := a.cfg.Agents[ag]
-	card(c.Key(ag)).Gap(14).Children(func() {
-		ui.Row(c).Gap(12).Children(func() {
-			ui.Box(c).Size(48, 48).Radius(14).Center().Background(p.subtle).Children(func() {
-				agentMark(c, ag, 28, info.Installed())
+	row := ui.Row(c.Key(ag)).Padding(14, 20).Gap(14).AlignItems(ui.Center)
+	if !last {
+		row.BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
+	}
+	row.Children(func() {
+		agentMark(c, ag, 30, info.Installed()).Shrink(0)
+		ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
+			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, ag.Label()).FontSize(15).FontWeight(600).SingleLine()
+				if info.Version != "" {
+					muted(c, info.Version).FontSize(13).SingleLine().Tooltip(info.Bin)
+				}
 			})
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				caption(c, strings.ToUpper(ag.Label()))
-				state := "未安装"
+			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+				var state string
+				color := t.TextMuted
 				switch {
 				case info.Detecting && !info.Installed():
-					state = "检测中…"
-				case info.Installed() && cfg.Enabled:
-					state = "已启用"
-				case info.Installed():
-					state = "未启用"
+					ui.Spinner(c).Size(10, 10)
+					state = "正在查找 " + env.Commands[ag]
+				case !info.Installed():
+					state = "未安装 · PATH 中找不到 " + env.Commands[ag]
+				case cfg.Enabled:
+					color = t.Success
+					state = fmt.Sprintf("已启用 · %d 个模型", len(info.Models))
+				default:
+					state = fmt.Sprintf("未启用 · %d 个模型", len(info.Models))
 				}
-				ui.Text(c, state).FontSize(22).FontWeight(800).SingleLine()
+				if !(info.Detecting && !info.Installed()) {
+					ui.Box(c).Size(7, 7).Radius(3.5).Background(color).Shrink(0)
+				}
+				muted(c, state).FontSize(12).SingleLine().Shrink(1).MinWidth(0)
 			})
-			if info.Installed() && ui.Switch(c, &cfg.Enabled).Label("启用").Changed() {
-				a.saveConfig()
-			}
 		})
-		if info.Installed() {
-			ui.Column(c).Gap(8).Children(func() {
-				a.modelSelect(c, ag, 0)
-				a.builtinButton(c, ag)
-			})
+		if !info.Installed() {
+			return
 		}
-		ui.Row(c).Gap(8).MarginY(2).Children(func() {
-			switch {
-			case info.Detecting && !info.Installed():
-				ui.Spinner(c).Size(10, 10)
-				muted(c, "正在查找 "+env.Commands[ag]).FontSize(12)
-			case !info.Installed():
-				muted(c, "PATH 中找不到 "+env.Commands[ag]).FontSize(12).SingleLine().Shrink(1).MinWidth(0)
-			default:
-				line := info.Version
-				if line != "" {
-					line += " · "
-				}
-				line += fmt.Sprintf("%d 个模型", len(info.Models))
-				muted(c, line).FontSize(12).SingleLine().Shrink(1).MinWidth(0).Tooltip(info.Bin)
-			}
-			ui.Spacer(c)
-			color := t.TextMuted
-			if info.Installed() && cfg.Enabled {
-				color = t.Success
-			}
-			statusDot(c, color)
-		})
-	})
-}
-
-// statusDot is a dot in a halo of its color, as a status light.
-func statusDot(c *ui.Context, color ui.Color) {
-	ui.Box(c).Size(20, 20).Radius(10).Center().Background(color.Alpha(0.15)).Shrink(0).Children(func() {
-		ui.Box(c).Size(8, 8).Radius(4).Background(color)
+		a.builtinButton(c, ag)
+		a.modelSelect(c, ag, selectW)
+		if ui.Switch(c, &cfg.Enabled).Label("启用 " + ag.Label()).Changed() {
+			a.saveConfig()
+		}
 	})
 }
 
@@ -141,9 +145,14 @@ func (a *app) builtinButton(c *ui.Context, ag agentlog.Agent) {
 	} else if n > 0 {
 		label = "内置 Skill " + strconv.Itoa(n) + "/" + strconv.Itoa(len(builtins))
 	}
-	b := ui.Button(c, "").FillWidth().Tooltip(builtinNames(builtins)).Children(func() {
-		ui.Icon(c, iconSkill).FontSize(13)
-		ui.Text(c, label).FontSize(12).SingleLine()
+	t := c.Theme()
+	b := ui.ButtonBase(c).Label(label).Tooltip(builtinNames(builtins)).Padding(5, 8).Gap(6).Radius(8).Shrink(0).Cursor(ui.CursorPointer)
+	if b.Hovered() {
+		b.Background(t.SurfaceHover)
+	}
+	b.Children(func() {
+		ui.Icon(c, iconSkill).FontSize(13).TextColor(t.TextMuted)
+		ui.Text(c, label).FontSize(13).SingleLine()
 	})
 	if b.Clicked() {
 		install := n < len(builtins)

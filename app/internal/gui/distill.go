@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -23,10 +24,13 @@ type distillState struct {
 	open      bool
 	refs      []agentlog.Session
 	runner    string // the label of the agent chosen
+	effort    string // the effort chosen, or defaultEffort
+	effortOf  string // the label of the agent effort is of
 	msgs      []agentlog.Message
 	errs      map[int]string // errors under messages
 	draft     string
 	running   bool
+	since     time.Time // when the run started
 	cancel    context.CancelFunc
 	sessionID string
 	started   bool   // the agent session exists: later messages resume it
@@ -89,6 +93,35 @@ func (a *app) runnerLabel(ag agentlog.Agent) string {
 	return ag.Label() + " · " + m
 }
 
+// defaultEffort is the effort select's choice to leave it to the model.
+const defaultEffort = "默认"
+
+// runnerAgent is the agent of a runner label, or "".
+func (a *app) runnerAgent(label string) agentlog.Agent {
+	for _, ag := range env.Agents {
+		if a.runnerLabel(ag) == label {
+			return ag
+		}
+	}
+	return ""
+}
+
+// efforts are the effort levels of the agent's chosen model.
+func (a *app) efforts(ag agentlog.Agent) []string {
+	if ag == "" || a.infos[ag] == nil {
+		return nil
+	}
+	return a.infos[ag].Efforts(a.cfg.Agents[ag].Model)
+}
+
+// effort is the effort chosen for the agent, if its model takes it.
+func (a *app) effort(ag agentlog.Agent) string {
+	if e := a.cfg.Agents[ag].Effort; contains(a.efforts(ag), e) {
+		return e
+	}
+	return ""
+}
+
 func (a *app) distillDialog(c *ui.Context) {
 	d := &a.distill
 	t := c.Theme()
@@ -112,6 +145,11 @@ func (a *app) distillDialog(c *ui.Context) {
 		if len(labels) > 0 && !contains(labels, d.runner) {
 			d.runner = labels[0]
 		}
+		// The effort select shows what was chosen for the agent's model.
+		if d.effortOf != d.runner {
+			d.effortOf = d.runner
+			d.effort = cmp.Or(a.effort(a.runnerAgent(d.runner)), defaultEffort)
+		}
 
 		// Title, and the agent that distills; dragging it moves the dialog.
 		title := ui.Row(c).Padding(14, 14, 12, 20).Gap(10).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
@@ -119,7 +157,7 @@ func (a *app) distillDialog(c *ui.Context) {
 			ui.Text(c, "AI 提炼").FontSize(16).Bold()
 			ui.Spacer(c)
 			if len(labels) > 0 {
-				muted(c, "使用").FontSize(12)
+				muted(c, "模型").FontSize(12)
 				mark := func(label string) {
 					for _, ag := range runners {
 						if a.runnerLabel(ag) == label {
@@ -141,6 +179,7 @@ func (a *app) distillDialog(c *ui.Context) {
 						}
 					}
 				}
+				a.effortSelect(c)
 			}
 			if iconButton(c, iconX, "关闭").Clicked() {
 				d.open = false
@@ -180,7 +219,8 @@ func (a *app) distillDialog(c *ui.Context) {
 		if d.running {
 			ui.Row(c).Padding(0, 20, 8).Gap(8).Children(func() {
 				ui.Spinner(c).Size(12, 12)
-				muted(c, "正在运行…").FontSize(12)
+				muted(c, "正在运行… "+elapsed(time.Since(d.since))).FontSize(12)
+				c.After(time.Second)
 			})
 		}
 		if len(d.changed) > 0 && !d.running {
@@ -283,12 +323,14 @@ func (a *app) send(runners []agentlog.Agent) {
 	d.draft = ""
 	d.msgs = append(d.msgs, agentlog.Message{Role: agentlog.User, Text: text, Time: time.Now()})
 	d.running = true
+	d.since = time.Now()
 	d.changed = nil
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 	req := runner.Request{
 		Info:      *a.infos[ag],
 		Model:     a.cfg.Agents[ag].Model,
+		Effort:    a.effort(ag),
 		Dir:       a.p.Root,
 		SessionID: d.sessionID,
 		Resume:    d.started,
@@ -419,6 +461,18 @@ func firstPrompt(p env.Paths, files []string, instructionsReadme, request string
 	return b.String()
 }
 
+// elapsed is how long a run has taken: 8 秒, 1 分 05 秒, 1 小时 02 分.
+func elapsed(d time.Duration) string {
+	s := int(d.Seconds())
+	switch {
+	case s < 60:
+		return fmt.Sprintf("%d 秒", s)
+	case s < 3600:
+		return fmt.Sprintf("%d 分 %02d 秒", s/60, s%60)
+	}
+	return fmt.Sprintf("%d 小时 %02d 分", s/3600, s%3600/60)
+}
+
 func contains(list []string, s string) bool {
 	for _, x := range list {
 		if x == s {
@@ -472,4 +526,28 @@ func (f *panelFrame) handles(c *ui.Context) {
 		func(_, dy float32) { f.h -= dy; f.dy += dy / 2 })
 	edge("br", ui.CursorResizeNWSE, func(e ui.Element) ui.Element { return e.Right(0).Bottom(0).Size(16, 16) },
 		func(dx, dy float32) { f.w += dx; f.dx += dx / 2; f.h += dy; f.dy += dy / 2 })
+}
+
+// effortSelect chooses the effort of the dialog's agent, among the levels
+// its model takes; a model without levels has none to choose.
+func (a *app) effortSelect(c *ui.Context) {
+	d := &a.distill
+	ag := a.runnerAgent(d.runner)
+	levels := a.efforts(ag)
+	if len(levels) == 0 {
+		return
+	}
+	muted(c, "Effort").FontSize(12)
+	if d.running {
+		ui.Text(c, d.effort).SingleLine().Padding(0, 10)
+		return
+	}
+	if scrollSelect(c, &d.effort, append([]string{defaultEffort}, levels...), 100, "选择 Effort", nil) {
+		e := d.effort
+		if e == defaultEffort {
+			e = ""
+		}
+		a.cfg.Agents[ag].Effort = e
+		a.saveConfig()
+	}
 }
